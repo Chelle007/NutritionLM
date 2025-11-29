@@ -5,7 +5,11 @@ import {
   Send, 
   Paperclip, 
   Sparkles, 
+  Menu, 
+  Plus, 
+  FileText, 
   MoreVertical, 
+  X
 } from 'lucide-react';
 
 export default function NutritionLM() {
@@ -17,10 +21,17 @@ export default function NutritionLM() {
     }
   ]);
   const [input, setInput] = useState('');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const messagesEndRef = useRef(null);
 
+  const sources = [
+    { id: 1, title: 'My Diet Plan (Nov).docx', type: 'DOC', color: 'bg-blue-100 text-blue-700' },
+    { id: 2, title: 'Vitamin D Research', type: 'TXT', color: 'bg-green-100 text-green-700' },
+    { id: 3, title: 'My Allergies List', type: 'PDF', color: 'bg-purple-100 text-purple-700' },
+  ];
+
   const suggestedPrompts = [
-    "Summarize the macros in my Keto plan",
+    "Summarize my diet plan",
     "Create a grocery list based on my allergies"
   ];
 
@@ -57,13 +68,81 @@ export default function NutritionLM() {
   return (
     <div className="flex h-screen bg-[#F0F2F5] font-sans text-gray-800 overflow-hidden">
       
+      {/* LEFT SIDEBAR */}
+      <div 
+        className={`${isSidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'} 
+        transition-all duration-300 ease-in-out border-r border-gray-200 bg-white flex flex-col shrink-0`}
+      >
+        <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+          <div className="flex items-center gap-2 text-indigo-600 font-bold text-xl">
+            <Sparkles className="w-6 h-6 fill-current" />
+            <span>NutritionLM</span>
+          </div>
+        </div>
+
+        <div className="p-4 flex-1 overflow-y-auto">
+          <div className="flex justify-between items-center mb-4">
+            <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Sources ({sources.length})</h2>
+            <button className="text-gray-400 hover:text-indigo-600">
+              <Plus className="w-4 h-4" />
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {/* Upload New Source Card */}
+            <div className="border border-dashed border-gray-300 rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-gray-50 transition-colors">
+              <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center mb-2">
+                <Plus className="w-4 h-4 text-gray-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-600">Add source</span>
+              <span className="text-xs text-gray-400">PDF, TXT, MD, Audio</span>
+            </div>
+
+            {/* Source Cards */}
+            {sources.map((source) => (
+              <div key={source.id} className="group relative bg-white border border-gray-200 rounded-xl p-3 hover:shadow-md transition-shadow cursor-pointer">
+                <div className="flex items-start gap-3">
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${source.color}`}>
+                    <FileText className="w-4 h-4" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-medium text-gray-900 truncate">{source.title}</h3>
+                    <p className="text-xs text-gray-500 mt-0.5">{source.type} • Added today</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        
+        {/* User Profile */}
+        <div className="p-4 border-t border-gray-100">
+          <div className="flex items-center gap-3 p-2 hover:bg-gray-50 rounded-lg cursor-pointer">
+            <div className="w-8 h-8 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-700 font-bold text-xs">
+              CB
+            </div>
+            <div className="flex-1">
+              <div className="text-sm font-medium">Cool Beans</div>
+              <div className="text-xs text-gray-400">Pro Plan</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
       {/* CHAT AREA */}
       <div className="flex-1 flex flex-col relative bg-white/50">
         
         {/* Header */}
         <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-10">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+          >
+            {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+          </button>
+          
           <div className="text-sm font-medium text-gray-500">
-            NutritionLM
+            {sources.length} sources selected
           </div>
           
           <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
