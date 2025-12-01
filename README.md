@@ -2,12 +2,10 @@
 
 NutritionLM is a Next.js app that helps users track and understand their nutrition, with a conversational interface powered by a Telegram bot and Supabase-backed authentication and user preferences.
 
-- **Live app**: `https://nutrition-lm.vercel.app`
-- **Telegram bot**: `@nutritionlm_bot`
-- **Bot backend repo**: `https://github.com/Chloelee05/NutritionLM_bot`
-- **Bot deployment (Render)**: `https://nutritionlm-bot.onrender.com/`
-
-The web app is built with the Next.js App Router (`app/` directory), and uses Supabase for auth/session handling and storing user data and preferences.
+- **Live app**: https://nutrition-lm.vercel.app
+- **Telegram bot**: https://t.me/nutritionlm_bot
+- **Bot backend repo**: https://github.com/Chloelee05/NutritionLM_bot
+- **Bot deployment (Render)**: https://nutritionlm-bot.onrender.com/
 
 ---
 
