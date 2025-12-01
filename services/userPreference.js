@@ -1,0 +1,48 @@
+import supabase from './supabaseClient'
+import getAuthenticatedUser from './auth'
+
+// Example argument for insertUserPreference function
+// { 
+//     birth_date: '1990-01-01', 
+//     gender: 'male',
+//     weight_kg: 70,
+//     height_cm: 180,
+//     goal: 'weight_loss',
+//     activity_level: 'moderate',
+//     dietary_preference: 'vegan',
+//     allergies: ['gluten', 'lactose'],
+//     habits: ['late_snacking', 'sugary_drinks'],
+// }
+export async function insertUserPreference(userPref) {
+    const user = await getAuthenticatedUser();
+    
+    const { data, error } = await supabase
+        .from('user_preference')
+        .insert([{ 
+            ...userPref, 
+            user_id: user.id 
+        }])
+  
+    if (error) {
+        console.error('Insert error:', error);
+        return null;
+    }
+    console.log('Inserted user preference:', data);
+    return data;
+}
+
+export async function getUserPreference() {
+    const user = await getAuthenticatedUser();
+    
+    const { data, error } = await supabase
+        .from('user_preference')
+        .select('*')
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error('Get error:', error);
+        return null;
+    }
+    console.log('Got user preference:', data);
+    return data;
+}
