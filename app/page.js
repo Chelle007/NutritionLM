@@ -11,6 +11,7 @@ import {
     MoreVertical, 
     X
 } from 'lucide-react';
+import { createBrowserClient } from "@supabase/ssr";
 
 // --- COLOR PALETTE DEFINITION ---
 const COLOR_PRIMARY = "#4CAF50";      // Forest Green
@@ -29,6 +30,60 @@ export default function NutritionLM() {
     const [input, setInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const messagesEndRef = useRef(null);
+
+    const [telegramVerified, setTelegramVerified] = useState(false);
+
+    useEffect(() => {
+    async function loadUser() {
+        const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+        process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+        );
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+        .from("users")
+        .select("telegram_verified")
+        .eq("id", user.id)
+        .single();
+
+        setTelegramVerified(data?.telegram_verified === true);
+    }
+
+    loadUser();
+    }, []);
+
+
+    async function connectTelegram() {
+    const supabase = createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+    );
+
+
+    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+
+    const { data: { user } } = await supabase.auth.getUser();
+
+    if (!user) {
+        alert("Please log in first.");
+        return;
+    }
+
+    const { error } = await supabase
+        .from("users")
+        .update({
+        telegram_otp: otp,
+        telegram_verified: false,
+        })
+        .eq("id", user.id);
+
+    if (error) console.log(error);
+
+    alert(`Your OTP is ${otp}. Please send this code to the Telegram bot.`);
+    }
 
     const sources = [
         { id: 1, title: 'My Diet Plan (Nov).docx', type: 'DOC', color: 'bg-blue-100 text-blue-700' },
@@ -150,22 +205,51 @@ export default function NutritionLM() {
                 
                 {/* Header */}
                 {/* Header Background: Light Grey/Off-white (with slight opacity/blur effect) */}
-                <header className="h-16 flex items-center justify-between px-6 border-b border-gray-200 backdrop-blur-sm sticky top-0 z-10" style={{ backgroundColor: `${COLOR_CONTENT_BG}B3` }}>
+                <header 
+                    className="h-16 flex items-center justify-between px-6 border-b border-gray-200 backdrop-blur-sm sticky top-0 z-10"
+                >
+                    {/* LEFT: Sidebar Toggle */}
                     <button 
                         onClick={() => setIsSidebarOpen(!isSidebarOpen)}
                         className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
                     >
-                        {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                        {isSidebarOpen ? (
+                            <X className="w-5 h-5" />
+                        ) : (
+                            <Menu className="w-5 h-5" />
+                        )}
                     </button>
-                    
+
+                    {/* MIDDLE: Sources Count */}
                     <div className="text-sm font-medium text-gray-500">
                         {sources.length} sources selected
                     </div>
-                    
-                    <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
-                        <MoreVertical className="w-5 h-5" />
-                    </button>
+
+                    {/* RIGHT: Telegram Status + More Button */}
+                    <div className="flex items-center gap-3">
+                        
+                        {telegramVerified ? (
+                            /* VERIFIED BADGE */
+                            <span className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full font-medium">
+                                Verified ✓
+                            </span>
+                        ) : (
+                            /* CONNECT TELEGRAM BUTTON */
+                            <button
+                                onClick={connectTelegram}
+                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
+                            >
+                                Connect Telegram
+                            </button>
+                        )}
+
+                        {/* MORE OPTIONS BUTTON */}
+                        <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
+                            <MoreVertical className="w-5 h-5" />
+                        </button>
+                    </div>
                 </header>
+
 
                 {/* Chat */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
