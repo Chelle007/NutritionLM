@@ -1,5 +1,6 @@
 import getSupabaseClient from './supabaseClient'
 import getAuthenticatedUser from './auth'
+import { ensureUserExists } from './user'
 
 // Example argument for insertUserPreference function
 // { 
@@ -16,6 +17,9 @@ import getAuthenticatedUser from './auth'
 export async function insertUserPreference(userPref) {
     const user = await getAuthenticatedUser();
     const supabase = getSupabaseClient();
+    
+    // Ensure user exists in users table before inserting preferences
+    await ensureUserExists(user.id);
     
     const { data, error } = await supabase
         .from('user_preferences')
