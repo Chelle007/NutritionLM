@@ -11,6 +11,7 @@ import {
     MoreVertical, 
     X
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 
 // --- COLOR PALETTE DEFINITION ---
 const COLOR_PRIMARY = "#4CAF50";      // Forest Green
@@ -232,7 +233,17 @@ export default function NutritionLM() {
                                         }`}
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
                                     >
-                                        {msg.text}
+                                        <ReactMarkdown 
+                                            components={{
+                                                // Tailwind removes list styles by default, so we add them back manually
+                                                ul: ({node, ...props}) => <ul className="list-disc pl-5 mt-2 mb-2" {...props} />,
+                                                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mt-2 mb-2" {...props} />,
+                                                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                                strong: ({node, ...props}) => <span className="font-bold" {...props} />,
+                                            }}
+                                        >
+                                            {msg.text}
+                                        </ReactMarkdown>
                                     </div>
                                     
                                     {/* TODO: Citations */}
