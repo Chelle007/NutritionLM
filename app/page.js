@@ -11,6 +11,7 @@ import {
     MoreVertical, 
     X
 } from 'lucide-react';
+import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
 
 // --- COLOR PALETTE DEFINITION ---
@@ -29,6 +30,7 @@ export default function NutritionLM() {
     ]);
     const [input, setInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isThinking, setIsThinking] = useState(false);
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
@@ -104,8 +106,8 @@ export default function NutritionLM() {
         scrollToBottom();
     }, [messages]);
 
-    const handleSend = () => {
-        if (!input.trim()) return;
+    const handleSend = async () => {
+        if (!input.trim() || isThinking) return;
 
         // Add User Message
         const userMsg = { id: Date.now(), role: 'user', text: input };
@@ -113,17 +115,55 @@ export default function NutritionLM() {
         const currentInput = input;
         setInput('');
 
-        // AI Mock Response
-        setTimeout(() => {
+        try {
+            setIsThinking(true);
+            const res = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ message: currentInput }),
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                const msg = errorData.error || "Sorry, there was an error talking to the server.";
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: Date.now() + 1,
+                        role: 'ai',
+                        text: msg,
+                    }
+                ]);
+                setIsThinking(false);
+                return;
+            }
+
+            const data = await res.json();
+            const reply = data.reply || "Gemini returned an empty response.";
+
             setMessages(prev => [
                 ...prev,
-                { 
-                    id: Date.now() + 1, 
-                    role: 'ai', 
-                    text: `No connected model yet.` 
+                {
+                    id: Date.now() + 1,
+                    role: 'ai',
+                    text: reply,
                 }
             ]);
-        }, 1000);
+        } catch (error) {
+            console.error("Chat API error:", error);
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: Date.now() + 1,
+                    role: 'ai',
+                    text: "Sorry, there was a network error. Please try again.",
+                }
+            ]);
+        } finally {
+            setIsThinking(false);
+        }
     };
 
     return (
@@ -282,13 +322,45 @@ export default function NutritionLM() {
                                         }`}
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
                                     >
-                                        {msg.text}
+                                        <ReactMarkdown 
+                                            components={{
+                                                // Tailwind removes list styles by default, so we add them back manually
+                                                ul: ({node, ...props}) => <ul className="list-disc pl-5 mt-2 mb-2" {...props} />,
+                                                ol: ({node, ...props}) => <ol className="list-decimal pl-5 mt-2 mb-2" {...props} />,
+                                                li: ({node, ...props}) => <li className="mb-1" {...props} />,
+                                                strong: ({node, ...props}) => <span className="font-bold" {...props} />,
+                                            }}
+                                        >
+                                            {msg.text}
+                                        </ReactMarkdown>
                                     </div>
                                     
                                     {/* TODO: Citations */}
                                 </div>
                             </div>
                         ))}
+                        
+                        {/* AI thinking indicator */}
+                        {isThinking && (
+                            <div className="flex gap-4">
+                                {/* AI Avatar */}
+                                <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                                    style={{ backgroundColor: COLOR_PRIMARY }}
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                </div>
+
+                                {/* Thinking bubble */}
+                                <div className="flex flex-col max-w-[80%] items-start">
+                                    <div
+                                        className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse"
+                                    >
+                                        NutritionLM is thinking...
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         <div ref={messagesEndRef} />
                     </div>
                 </div>
