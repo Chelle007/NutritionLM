@@ -30,6 +30,7 @@ export default function NutritionLM() {
     ]);
     const [input, setInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+    const [isThinking, setIsThinking] = useState(false);
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
@@ -106,7 +107,7 @@ export default function NutritionLM() {
     }, [messages]);
 
     const handleSend = async () => {
-        if (!input.trim()) return;
+        if (!input.trim() || isThinking) return;
 
         // Add User Message
         const userMsg = { id: Date.now(), role: 'user', text: input };
@@ -115,6 +116,7 @@ export default function NutritionLM() {
         setInput('');
 
         try {
+            setIsThinking(true);
             const res = await fetch("/api/chat", {
                 method: "POST",
                 headers: {
@@ -134,6 +136,7 @@ export default function NutritionLM() {
                         text: msg,
                     }
                 ]);
+                setIsThinking(false);
                 return;
             }
 
@@ -158,6 +161,8 @@ export default function NutritionLM() {
                     text: "Sorry, there was a network error. Please try again.",
                 }
             ]);
+        } finally {
+            setIsThinking(false);
         }
     };
 
@@ -334,6 +339,28 @@ export default function NutritionLM() {
                                 </div>
                             </div>
                         ))}
+                        
+                        {/* AI thinking indicator */}
+                        {isThinking && (
+                            <div className="flex gap-4">
+                                {/* AI Avatar */}
+                                <div
+                                    className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white"
+                                    style={{ backgroundColor: COLOR_PRIMARY }}
+                                >
+                                    <Sparkles className="w-4 h-4" />
+                                </div>
+
+                                {/* Thinking bubble */}
+                                <div className="flex flex-col max-w-[80%] items-start">
+                                    <div
+                                        className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse"
+                                    >
+                                        NutritionLM is thinking...
+                                    </div>
+                                </div>
+                            </div>
+                        )}
                         <div ref={messagesEndRef} />
                     </div>
                 </div>
