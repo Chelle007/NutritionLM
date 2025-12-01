@@ -104,7 +104,7 @@ export default function NutritionLM() {
         scrollToBottom();
     }, [messages]);
 
-    const handleSend = () => {
+    const handleSend = async () => {
         if (!input.trim()) return;
 
         // Add User Message
@@ -113,17 +113,51 @@ export default function NutritionLM() {
         const currentInput = input;
         setInput('');
 
-        // AI Mock Response
-        setTimeout(() => {
+        try {
+            const res = await fetch("/api/chat", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({ message: currentInput }),
+            });
+
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({}));
+                const msg = errorData.error || "Sorry, there was an error talking to the server.";
+                setMessages(prev => [
+                    ...prev,
+                    {
+                        id: Date.now() + 1,
+                        role: 'ai',
+                        text: msg,
+                    }
+                ]);
+                return;
+            }
+
+            const data = await res.json();
+            const reply = data.reply || "Gemini returned an empty response.";
+
             setMessages(prev => [
                 ...prev,
-                { 
-                    id: Date.now() + 1, 
-                    role: 'ai', 
-                    text: `No connected model yet.` 
+                {
+                    id: Date.now() + 1,
+                    role: 'ai',
+                    text: reply,
                 }
             ]);
-        }, 1000);
+        } catch (error) {
+            console.error("Chat API error:", error);
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: Date.now() + 1,
+                    role: 'ai',
+                    text: "Sorry, there was a network error. Please try again.",
+                }
+            ]);
+        }
     };
 
     return (
