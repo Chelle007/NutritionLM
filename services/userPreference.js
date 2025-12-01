@@ -1,4 +1,4 @@
-import supabase from './supabaseClient'
+import getSupabaseClient from './supabaseClient'
 import getAuthenticatedUser from './auth'
 
 // Example argument for insertUserPreference function
@@ -15,6 +15,7 @@ import getAuthenticatedUser from './auth'
 // }
 export async function insertUserPreference(userPref) {
     const user = await getAuthenticatedUser();
+    const supabase = getSupabaseClient();
     
     const { data, error } = await supabase
         .from('user_preference')
@@ -33,6 +34,7 @@ export async function insertUserPreference(userPref) {
 
 export async function getUserPreference() {
     const user = await getAuthenticatedUser();
+    const supabase = getSupabaseClient();
     
     const { data, error } = await supabase
         .from('user_preference')
