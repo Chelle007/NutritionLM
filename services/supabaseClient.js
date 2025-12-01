@@ -1,7 +1,18 @@
-import { createClient } from '@supabase/supabase-js'
+import { createBrowserClient } from '@supabase/ssr'
 
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-const supabase = createClient(supabaseUrl, supabaseKey)
+/**
+ * Creates a Supabase client
+ * Handles authentication cookies for Next.js
+ */
+export function createClient() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+  )
+}
 
-export default supabase;
+// Creates a new client instance each time
+// Ensures proper cookie handling in Next.js
+export default function getSupabaseClient() {
+  return createClient();
+}
