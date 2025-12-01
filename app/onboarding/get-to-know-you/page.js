@@ -17,7 +17,8 @@ import {
     Droplet, 
     Tag, 
     Activity 
-} from "lucide-react"; 
+} from "lucide-react";
+import { insertUserPreference } from "../../../services/userPreference"; 
 
 //Defining the color palette for this page
 const COLOR_PRIMARY = "#4CAF50";      //Forest Green
@@ -50,7 +51,6 @@ const planOptions = [
     { label: "Budgeting", value: "Cost & Budget Constraint", icon: Tag },
 ];
 
-
 //Used to connect to the connect-tele page later on
 export default function GetToKnowYouPage() {
     //Initializes the Next.js router for navigation
@@ -70,6 +70,30 @@ export default function GetToKnowYouPage() {
     //States used for animation control
     const [currentStepContent, setCurrentStepContent] = useState(null);
     const [isTransitioning, setIsTransitioning] = useState(false); 
+
+    // TEST: Inserts dummy user preference data into the database
+    // NOTE FROM DESMOND: this is an example of how to insert user preference data into the database
+    // useEffect(() => {
+    //     const insertUserPreferenceData = async () => {
+    //         try {
+    //             const result = await insertUserPreference({ 
+    //                 birth_date: '1990-01-01', 
+    //                 gender: 'male',
+    //                 weight_kg: 70,
+    //                 height_cm: 180,
+    //                 goal: 'weight_loss',
+    //                 activity_level: 'moderate',
+    //                 dietary_preference: 'vegan',
+    //                 allergies: ['gluten', 'lactose'],
+    //                 habits: ['late_snacking', 'sugary_drinks'],
+    //             });
+    //             console.log('Test insertion result:', result);
+    //         } catch (error) {
+    //             console.error('Test insertion error:', error);
+    //         }
+    //     };
+    //     insertUserPreferenceData();
+    // }, []); // Empty dependency array means this runs once on mount
 
     //Below here is the Logic for handling user interactions and rendering content
     //LOGIC CODES
