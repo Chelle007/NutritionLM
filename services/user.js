@@ -15,17 +15,38 @@ export async function ensureUserExists(userId) {
         .eq('id', userId)
         .single();
 
-    // If user doesn't exist, create them
+    // If user doesn't exist, create them with data from auth metadata
     if (!existingUser && checkError?.code === 'PGRST116') {
+        // Get user data from auth to populate profile fields
+        const { data: { user: currentAuthUser } } = await supabase.auth.getUser();
+        
+        let userData = {
+            id: userId,
+            full_name: null,
+            avatar_url: null,
+            telegram_chat_id: null,
+        };
+
+        // If this is the current authenticated user, populate from their auth metadata
+        if (currentAuthUser && currentAuthUser.id === userId) {
+            userData.full_name = currentAuthUser.user_metadata?.full_name || 
+                                currentAuthUser.user_metadata?.name || 
+                                currentAuthUser.user_metadata?.display_name || 
+                                null;
+            userData.avatar_url = currentAuthUser.user_metadata?.avatar_url || 
+                                 currentAuthUser.user_metadata?.picture || 
+                                 null;
+        }
+
         const { error: insertError } = await supabase
             .from('users')
-            .insert([{ id: userId }]);
+            .insert([userData]);
         
         if (insertError) {
             console.error('Error creating user:', insertError);
             throw insertError;
         }
-        console.log('Created user record:', userId);
+        console.log('Created user record with profile data:', userId);
     } else if (checkError && checkError.code !== 'PGRST116') {
         console.error('Error checking user:', checkError);
         throw checkError;
