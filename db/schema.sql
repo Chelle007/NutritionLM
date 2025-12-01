@@ -27,7 +27,7 @@ create table user_preferences (
   user_id uuid references users(id) on delete cascade,
 
   -- TODO: replace these with real quiz fields
-  birthdate date,
+  birth_date date,
   weight_kg NUMERIC(5,2), -- up to 999.99
   height_cm NUMERIC(5,2),
   goal text,
