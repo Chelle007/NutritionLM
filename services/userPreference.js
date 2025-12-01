@@ -18,11 +18,12 @@ export async function insertUserPreference(userPref) {
     const supabase = getSupabaseClient();
     
     const { data, error } = await supabase
-        .from('user_preference')
+        .from('user_preferences')
         .insert([{ 
             ...userPref, 
             user_id: user.id 
         }])
+        .select() // returns the inserted data
   
     if (error) {
         console.error('Insert error:', error);
@@ -37,7 +38,7 @@ export async function getUserPreference() {
     const supabase = getSupabaseClient();
     
     const { data, error } = await supabase
-        .from('user_preference')
+        .from('user_preferences')
         .select('*')
         .eq('user_id', user.id);
 
