@@ -1,43 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+## NutritionLM
 
-## Getting Started
+NutritionLM is a Next.js app that helps users track and understand their nutrition, with a conversational interface powered by a Telegram bot and Supabase-backed authentication and user preferences.
 
-First, run the development server:
+- **Live app**: https://nutrition-lm.vercel.app
+- **Telegram bot**: https://t.me/nutritionlm_bot
+- **Bot backend repo**: https://github.com/Chloelee05/NutritionLM_bot
+- **Bot deployment (Render)**: https://nutritionlm-bot.onrender.com/
+
+---
+
+## Tech Stack
+
+- **Framework**: Next.js 16 (App Router)
+- **Language**: React 19 (JS/TS-ready)
+- **Auth & Database**: Supabase (`app/utils/supabase`)
+- **Styling**: Tailwind CSS 4 (via PostCSS)
+- **Icons**: `lucide-react`
+
+---
+
+## Getting Started (Local Development)
+
+1. **Install dependencies**
+
+```bash
+npm install
+```
+
+2. **Set up environment variables**
+
+Create a `.env.local` file at the project root and configure your Supabase keys and any other required secrets, e.g.:
+
+```bash
+NEXT_PUBLIC_SUPABASE_URL=...
+NEXT_PUBLIC_SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
+```
+
+3. **Run the development server**
 
 ```bash
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Then open `http://localhost:3000` in your browser.
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## Project Structure (Web)
 
-## Learn More
+- **`app/page.js`**: Landing/entry page of the NutritionLM web app.
+- **`app/login/page.js`**: Login screen and Supabase auth flow.
+- **`app/onboarding/get-to-know-you/page.js`**: Onboarding questions to understand the user’s nutrition profile.
+- **`app/onboarding/connect-tele/page.js`**: Flow to connect the Telegram bot with the user’s account.
+- **`app/utils/supabase`**: Supabase client setup for server and client usage.
+- **`services/`**: Higher-level service helpers for auth, user data, and user preferences.
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## Deployment
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+The web app is deployed on Vercel:
 
-## Deploy on Vercel
+- **Production URL**: `https://nutrition-lm.vercel.app`
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Pushes to the `main` branch (or your configured production branch) will trigger a new deployment on Vercel.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The Telegram bot backend is deployed separately on Render and communicates with Telegram and any shared persistence layer as defined in its own repository.
 
-## Backend (Telegram Bot)
+---
 
-The NutritionLM Telegram Bot is deployed separately:
-- Repo: https://github.com/Chloelee05/NutritionLM_bot
-- Deploy (Render) : https://nutritionlm-bot.onrender.com/
-- Telegram Bot: @nutritionlm_bot
+## Related Projects
+
+- **NutritionLM Telegram Bot** (backend & bot logic): `https://github.com/Chloelee05/NutritionLM_bot`
+
