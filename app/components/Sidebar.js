@@ -2,13 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Sparkles, Menu, X, Plus, FileText, User } from 'lucide-react';
+import { Sparkles, Menu, X, Plus, FileText, User, Import } from 'lucide-react';
 import { createBrowserClient } from "@supabase/ssr";
 import {
     COLOR_SECONDARY_LIGHT,
     COLOR_ACCENT_DARK,
     COLOR_CONTENT_BG
 } from '../constants/colors';
+import Image from 'next/image'; 
 
 export default function Sidebar({ 
     isSidebarOpen, 
@@ -59,9 +60,17 @@ export default function Sidebar({
             >
                 <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center ${isMobile ? 'px-4' : (isSidebarOpen ? 'pl-6 pr-4' : 'px-4')} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
                     {(!isMobile && !isSidebarOpen) ? null : (
-                        <div className="flex items-center gap-2 font-bold text-xl text-white whitespace-nowrap">
-                            <Sparkles className="w-6 h-6 fill-current shrink-0" />
-                            <span className={isMobile ? '' : (isSidebarOpen ? '' : 'hidden')}>NutritionLM</span>
+                        <div className="flex items-center gap-3 whitespace-nowrap">
+                            {/* Logo for the application*/}
+                            <div className="relative" style={{ width: isSidebarOpen ? "250px" : "40px", height: "100px" }}>
+                                <Image
+                                    src="/Nutritionlm.png"
+                                    alt="NutritionLM logo"
+                                    fill
+                                    className="object-contain"
+                                    sizes="150px"
+                                />
+                            </div>
                         </div>
                     )}
                     {isMobile ? (
