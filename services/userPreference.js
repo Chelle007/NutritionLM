@@ -41,6 +41,9 @@ export async function getUserPreference() {
     const user = await getAuthenticatedUser();
     const supabase = getSupabaseClient();
     
+    // Ensure user exists in users table before querying preferences
+    await ensureUserExists(user.id);
+    
     const { data, error } = await supabase
         .from('user_preferences')
         .select('*')
@@ -52,4 +55,51 @@ export async function getUserPreference() {
     }
     console.log('Got user preference:', data);
     return data;
+}
+
+// request body: nutritionGoals object
+export async function insertNutritionGoals(nutritionGoals) {
+    const user = await getAuthenticatedUser();
+    const supabase = getSupabaseClient();
+    
+    // Ensure user exists in users table
+    await ensureUserExists(user.id);
+    
+    // Check if user preference exists
+    const existing = await getUserPreference();
+    
+    if (existing && existing.length > 0) {
+        // Update existing preference
+        const { data, error } = await supabase
+            .from('user_preferences')
+            .update({ 
+                nutrition_goals: nutritionGoals,
+                updated_at: new Date().toISOString()
+            })
+            .eq('user_id', user.id)
+            .select();
+        
+        if (error) {
+            console.error('Update error:', error);
+            return null;
+        }
+        console.log('Updated nutrition goals:', data);
+        return data;
+    } else {
+        // Create new preference with nutrition goals
+        const { data, error } = await supabase
+            .from('user_preferences')
+            .insert([{ 
+                user_id: user.id,
+                nutrition_goals: nutritionGoals
+            }])
+            .select();
+        
+        if (error) {
+            console.error('Insert error:', error);
+            return null;
+        }
+        console.log('Inserted nutrition goals:', data);
+        return data;
+    }
 }
