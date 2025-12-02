@@ -9,7 +9,9 @@ import {
     Plus, 
     FileText, 
     MoreVertical, 
-    X
+    X,
+    ShieldCheck,
+    Scale
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
@@ -31,6 +33,7 @@ export default function NutritionLM() {
     const [input, setInput] = useState('');
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isThinking, setIsThinking] = useState(false);
+    const [activeButton, setActiveButton] = useState(null); // 'factCheck', 'compare', or null
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
@@ -395,7 +398,7 @@ export default function NutritionLM() {
                         )}
 
                         {/* Input Bar */}
-                        <div className="relative bg-white rounded-[2rem] shadow-lg border border-gray-200">
+                        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden focus-within:ring-1 focus-within:ring-green-500/50 transition-shadow">
                             <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
@@ -406,26 +409,64 @@ export default function NutritionLM() {
                                     }
                                 }}
                                 placeholder="Ask NutritionLM specifically about your sources..."
-                                className="w-full bg-transparent border-none focus:ring-0 outline-none p-4 pl-6 pr-24 min-h-[60px] max-h-40 resize-none text-gray-700 placeholder:text-gray-400"
+                                className="w-full bg-transparent border-none focus:ring-0 outline-none p-4 min-h-[60px] max-h-40 resize-none text-gray-700 placeholder:text-gray-400"
                                 rows={1}
                             />
                             
-                            <div className="absolute right-3 bottom-2.5 flex items-center gap-2">
-                                <button className="p-2 text-gray-400 hover:text-gray-600 transition-colors">
-                                    <Paperclip className="w-5 h-5" />
-                                </button>
-                                <button 
-                                    onClick={handleSend}
-                                    disabled={!input.trim()}
-                                    className={`p-2 rounded-full transition-all duration-200 
-                                        ${input.trim() 
-                                            // Send Button: Forest Green (#4CAF50)
-                                            ? 'shadow-md hover:bg-gray-700' 
-                                            : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
-                                    style={{ backgroundColor: input.trim() ? COLOR_PRIMARY : 'rgb(243, 244, 246)' }} // Fallback for disabled color
-                                >
-                                    <Send className="w-5 h-5 ml-0.5" />
-                                </button>
+                            {/* Input Toolbar */}
+                            <div className="flex justify-between items-center px-3 pb-3 pt-1">
+                                
+                                {/* LEFT: New Feature Buttons */}
+                                <div className="flex items-center gap-2">
+                                    <button 
+                                        onClick={() => {
+                                            // Toggle: if already active, deactivate; otherwise activate and deactivate the other
+                                            setActiveButton(activeButton === 'factCheck' ? null : 'factCheck');
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                                            activeButton === 'factCheck'
+                                                ? 'text-white bg-blue-600 hover:bg-blue-700'
+                                                : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
+                                        }`}
+                                    >
+                                        <ShieldCheck className="w-4 h-4" />
+                                        Fact Check
+                                    </button>
+
+                                    <button 
+                                        onClick={() => {
+                                            // Toggle: if already active, deactivate; otherwise activate and deactivate the other
+                                            setActiveButton(activeButton === 'compare' ? null : 'compare');
+                                        }}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
+                                            activeButton === 'compare'
+                                                ? 'text-white bg-purple-600 hover:bg-purple-700'
+                                                : 'text-purple-600 bg-purple-50 hover:bg-purple-100'
+                                        }`}
+                                    >
+                                        <Scale className="w-4 h-4" />
+                                        Compare
+                                    </button>
+                                </div>
+
+                                {/* RIGHT: Existing Actions */}
+                                <div className="flex items-center gap-2">
+                                    <button className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors">
+                                        <Paperclip className="w-5 h-5" />
+                                    </button>
+                                    <button 
+                                        onClick={handleSend}
+                                        disabled={!input.trim()}
+                                        className={`p-2 rounded-full transition-all duration-200 
+                                            ${input.trim() 
+                                                // Send Button: Forest Green
+                                                ? 'shadow-md text-white' 
+                                                : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
+                                        style={{ backgroundColor: input.trim() ? COLOR_PRIMARY : 'rgb(243, 244, 246)' }} 
+                                    >
+                                        <Send className="w-5 h-5 ml-0.5" />
+                                    </button>
+                                </div>
                             </div>
                         </div>
 
