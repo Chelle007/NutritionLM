@@ -18,18 +18,18 @@ import {
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
-
-// COLOR PALETTE DEFINITION
-const COLOR_PRIMARY = "#4CAF50";      
-const COLOR_SECONDARY_LIGHT = "#C8E6C9";    
-const COLOR_ACCENT_DARK = "#34495E";  
-const COLOR_CONTENT_BG = "#F8F8F8";  
-const COLOR_FACT_CHECK = "#26A69A";  
-const COLOR_FACT_CHECK_LIGHT = "#B2DFDB";  
-const COLOR_COMPARE = "#66BB6A";  
-const COLOR_COMPARE_LIGHT = "#C8E6C9";  
-const COLOR_NUTRITION = '#F59E0B';
-const COLOR_NUTRITION_LIGHT = '#FEF3C7';
+import {
+    COLOR_PRIMARY,
+    COLOR_SECONDARY_LIGHT,
+    COLOR_ACCENT_DARK,
+    COLOR_CONTENT_BG,
+    COLOR_FACT_CHECK,
+    COLOR_FACT_CHECK_LIGHT,
+    COLOR_COMPARE,
+    COLOR_COMPARE_LIGHT,
+    COLOR_NUTRITION,
+    COLOR_NUTRITION_LIGHT
+} from './constants/colors';
 
 export default function NutritionLM() {
     const router = useRouter();
