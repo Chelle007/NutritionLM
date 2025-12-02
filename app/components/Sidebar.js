@@ -1,8 +1,9 @@
 "use client";
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Sparkles, Menu, X, Plus, FileText } from 'lucide-react';
+import { Sparkles, Menu, X, Plus, FileText, User } from 'lucide-react';
+import { createBrowserClient } from "@supabase/ssr";
 import {
     COLOR_SECONDARY_LIGHT,
     COLOR_ACCENT_DARK,
@@ -15,6 +16,31 @@ export default function Sidebar({
     isMobile,
     sources = []
 }) {
+    const [userFullName, setUserFullName] = useState('User');
+
+    useEffect(() => {
+        async function loadUser() {
+            const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+                process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+            );
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data } = await supabase
+                .from("users")
+                .select("full_name")
+                .eq("id", user.id)
+                .single();
+
+            if (data?.full_name) {
+                setUserFullName(data.full_name);
+            }
+        }
+        loadUser();
+    }, []);
+
     return (
         <>
             <div 
@@ -106,11 +132,11 @@ export default function Sidebar({
                         className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
                         onClick={() => isMobile && setIsSidebarOpen(false)}
                     >
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
-                            CB
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
+                            <User className="w-4 h-4" style={{ color: COLOR_ACCENT_DARK }} />
                         </div>
                         <div className={`flex-1 ${isMobile ? '' : (isSidebarOpen ? '' : 'hidden')}`}>
-                            <div className="text-sm font-medium text-white">Cool Beans</div>
+                            <div className="text-sm font-medium text-white">{userFullName}</div>
                             <div className="text-xs text-gray-400">Pro Plan</div>
                         </div>
                     </Link>
