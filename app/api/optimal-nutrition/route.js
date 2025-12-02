@@ -1,11 +1,32 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { getUserPreference } from '@/services/user';
-import { insertNutritionGoals } from '@/services/userPreference';
+import { createClient } from '../../utils/supabase/server';
+import { getUserPreferenceServer, insertNutritionGoals } from '../../../services/userPreference';
 
 // Request body: user_preference object
-export async function POST(request) {
+export async function POST() {
   try {
-    const userPreference = await getUserPreference();
+    // Use server-side Supabase client for API routes
+    const supabase = await createClient();
+    
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return Response.json(
+        { error: "User not authenticated" },
+        { status: 401 }
+      );
+    }
+
+    // Get user preferences using server-side function
+    const userPreference = await getUserPreferenceServer(supabase, user);
+    
+    if (!userPreference) {
+      return Response.json(
+        { error: "Failed to get user preferences" },
+        { status: 500 }
+      );
+    }
+
     console.log("userPreference:", userPreference);
 
     // Check API key
@@ -65,7 +86,16 @@ Example format:
       );
     }
 
-    const nutritionGoals = await insertNutritionGoals(parsedData);
+    // Insert or update nutrition goals using server-side function
+    const nutritionGoals = await insertNutritionGoals(parsedData, supabase, user);
+    
+    if (!nutritionGoals) {
+      return Response.json(
+        { error: "Failed to save nutrition goals" },
+        { status: 500 }
+      );
+    }
+
     console.log("nutritionGoals:", nutritionGoals);
 
     return Response.json({ nutritionGoals: nutritionGoals });

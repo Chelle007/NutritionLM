@@ -58,15 +58,28 @@ export async function getUserPreference() {
 }
 
 // request body: nutritionGoals object
-export async function insertNutritionGoals(nutritionGoals) {
-    const user = await getAuthenticatedUser();
-    const supabase = getSupabaseClient();
-    
-    // Ensure user exists in users table
-    await ensureUserExists(user.id);
+export async function insertNutritionGoals(nutritionGoals, supabase = null, user = null) {
+    // If supabase and user are provided, use them (server-side)
+    // Otherwise, get them from client-side functions (browser)
+    if (!supabase || !user) {
+        user = await getAuthenticatedUser();
+        supabase = getSupabaseClient();
+        await ensureUserExists(user.id);
+    }
     
     // Check if user preference exists
-    const existing = await getUserPreference();
+    let existing;
+    if (supabase && user) {
+        // Server-side: query directly
+        const { data } = await supabase
+            .from('user_preferences')
+            .select('*')
+            .eq('user_id', user.id);
+        existing = data;
+    } else {
+        // Client-side: use existing function
+        existing = await getUserPreference();
+    }
     
     if (existing && existing.length > 0) {
         // Update existing preference
@@ -102,4 +115,38 @@ export async function insertNutritionGoals(nutritionGoals) {
         console.log('Inserted nutrition goals:', data);
         return data;
     }
+}
+
+// Server-side version: Get user preference with provided supabase client and user
+export async function getUserPreferenceServer(supabase, user) {
+    // Ensure user exists in users table
+    const { data: existingUser } = await supabase
+        .from('users')
+        .select('id')
+        .eq('id', user.id)
+        .single();
+
+    if (!existingUser) {
+        // Create user record if it doesn't exist
+        const { error: userError } = await supabase
+            .from('users')
+            .insert([{ id: user.id }]);
+        
+        if (userError) {
+            console.error('Error creating user:', userError);
+            return null;
+        }
+    }
+
+    const { data, error } = await supabase
+        .from('user_preferences')
+        .select('*')
+        .eq('user_id', user.id);
+
+    if (error) {
+        console.error('Get error:', error);
+        return null;
+    }
+    console.log('Got user preference:', data);
+    return data;
 }
