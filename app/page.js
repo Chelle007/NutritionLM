@@ -12,8 +12,8 @@ import {
     X,
     ShieldCheck,
     Scale,
-    Image as ImageIcon,
-    CheckCircle
+    CheckCircle,
+    UtensilsCrossed
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
@@ -27,6 +27,8 @@ const COLOR_FACT_CHECK = "#26A69A";
 const COLOR_FACT_CHECK_LIGHT = "#B2DFDB";  
 const COLOR_COMPARE = "#66BB6A";  
 const COLOR_COMPARE_LIGHT = "#C8E6C9";  
+const COLOR_NUTRITION = '#F59E0B';
+const COLOR_NUTRITION_LIGHT = '#FEF3C7';
 
 export default function NutritionLM() {
     const [messages, setMessages] = useState([
@@ -202,6 +204,112 @@ export default function NutritionLM() {
         setAttachment(null);
     };
 
+    const parseNutritionInput = (inputText = '') => {
+        const text = inputText.trim();
+        if (!text) {
+            return { foodName: '', ingredients: [] };
+        }
+
+        const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+        let foodName = '';
+        let ingredients = [];
+
+        if (text.includes(':')) {
+            const colonIndex = text.indexOf(':');
+            foodName = text.substring(0, colonIndex).trim() || 'Custom Food';
+            const ingredientsStr = text.substring(colonIndex + 1).trim();
+            ingredients = ingredientsStr.split(/[\n,]/)
+                .map((item) => item.trim())
+                .filter(Boolean);
+        } else if (lines.length > 1) {
+            foodName = lines[0];
+            ingredients = lines.slice(1)
+                .flatMap((line) => line.split(','))
+                .map((item) => item.trim())
+                .filter(Boolean);
+        } else {
+            const parts = text.split(',');
+            if (parts.length > 1) {
+                foodName = 'Custom Food';
+                ingredients = parts.map((item) => item.trim()).filter(Boolean);
+            } else {
+                foodName = text;
+                ingredients = [text];
+            }
+        }
+
+        return { foodName, ingredients };
+    };
+
+    const runNutritionCheck = async (messageText, attachmentData) => {
+        try {
+            let foodName = '';
+            let ingredients = [];
+
+            if (attachmentData?.file) {
+                const formData = new FormData();
+                formData.append("image", attachmentData.file);
+
+                const response = await fetch("/api/ingredients", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to process image");
+                }
+
+                foodName = data.food_name || 'Detected Food';
+                ingredients = data.ingredients || [];
+            } else {
+                const parsed = parseNutritionInput(messageText);
+                foodName = parsed.foodName;
+                ingredients = parsed.ingredients;
+            }
+
+            if (!foodName || ingredients.length === 0) {
+                throw new Error("Please provide a food name and at least one ingredient.");
+            }
+
+            const nutritionResponse = await fetch("/api/nutritionist", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    food_name: foodName,
+                    ingredients,
+                }),
+            });
+
+            const nutritionData = await nutritionResponse.json();
+
+            if (!nutritionResponse.ok) {
+                throw new Error(nutritionData.error || "Failed to get nutrition data");
+            }
+
+            const nutritionMessage = {
+                id: Date.now() + 1,
+                role: 'ai',
+                text: `**Nutrition Analysis for ${foodName}**\n\n**Ingredients:** ${ingredients.join(', ')}\n\n**Nutrition Breakdown:**`,
+                nutritionData: nutritionData.nutritions,
+                nutritionImage: attachmentData?.preview || null,
+            };
+            setMessages(prev => [...prev, nutritionMessage]);
+        } catch (error) {
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: Date.now() + 2,
+                    role: 'ai',
+                    text: `Nutrition check failed: ${error.message}`,
+                },
+            ]);
+        }
+    };
+
     const extractFirstJson = (text) => {
         const startIndex = text.indexOf('{');
         if (startIndex === -1) return null;
@@ -231,22 +339,38 @@ export default function NutritionLM() {
         // Allow send if text OR attachment exists
         if ((!input.trim() && !attachment) || isThinking) return;
 
+        const isNutritionMode = activeButton === 'nutrition';
+
+        const currentInput = input;
+        const currentAttachment = attachment;
+
         // Add User Message (Visual only)
         const userMsg = { 
             id: Date.now(), 
             role: 'user', 
-            text: input,
-            // Pass the image URL to the message list for visual rendering
-            image: attachment ? attachment.preview : null 
+            text: currentInput,
+            image: currentAttachment ? currentAttachment.preview : null 
         };
         
         setMessages(prev => [...prev, userMsg]);
         
-        const currentInput = input;
-        
-        // Convert image to base64 for backend
+        setInput('');
+        setAttachment(null); // Clear attachment from input area
+
+        if (isNutritionMode) {
+            try {
+                setIsThinking(true);
+                await runNutritionCheck(currentInput, currentAttachment);
+            } finally {
+                setIsThinking(false);
+                setActiveButton(null);
+            }
+            return;
+        }
+
+        // Convert image to base64 for backend chat flow
         let imageData = null;
-        if (attachment?.file) {
+        if (currentAttachment?.file) {
             try {
                 const reader = new FileReader();
                 imageData = await new Promise((resolve, reject) => {
@@ -254,20 +378,17 @@ export default function NutritionLM() {
                         const base64 = reader.result.split(',')[1];
                         resolve({
                             data: base64,
-                            mimeType: attachment.file.type || 'image/jpeg'
+                            mimeType: currentAttachment.file.type || 'image/jpeg'
                         });
                     };
                     reader.onerror = reject;
-                    reader.readAsDataURL(attachment.file);
+                    reader.readAsDataURL(currentAttachment.file);
                 });
             } catch (error) {
                 console.error("Error converting image to base64:", error);
             }
         }
         
-        setInput('');
-        setAttachment(null); // Clear attachment from input area
-
         try {
             setIsThinking(true);
             const res = await fetch("/api/chat", {
@@ -493,11 +614,11 @@ export default function NutritionLM() {
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
                                     >
                                         {/* Render Image in chat history */}
-                                        {msg.image && (
+                                        {(msg.image || msg.nutritionImage) && (
                                             <div className="mb-2">
                                                 <img 
-                                                    src={msg.image} 
-                                                    alt="User Upload" 
+                                                    src={msg.image || msg.nutritionImage} 
+                                                    alt={msg.role === 'user' ? "User Upload" : "Food Image"} 
                                                     className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm max-h-64 object-cover"
                                                 />
                                             </div>
@@ -579,6 +700,35 @@ export default function NutritionLM() {
                                                         >
                                                             {idx + 1}. {citation.title || citation.uri}
                                                         </a>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+
+                                        {/* Display Nutrition Data if available */}
+                                        {msg.nutritionData && typeof msg.nutritionData === 'object' && (
+                                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {Object.entries(msg.nutritionData).map(([key, value]) => (
+                                                        <div key={key} className="bg-white/50 p-3 rounded-xl border border-gray-100">
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <span className="font-medium text-sm capitalize text-gray-700">
+                                                                    {key}
+                                                                </span>
+                                                                <span className="text-xs text-gray-600 font-semibold">
+                                                                    {value}%
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                <div
+                                                                    className="h-2 rounded-full transition-all"
+                                                                    style={{ 
+                                                                        width: `${Math.min(value, 100)}%`,
+                                                                        backgroundColor: COLOR_PRIMARY
+                                                                    }}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
                                                     ))}
                                                 </div>
                                             </div>
@@ -706,6 +856,18 @@ export default function NutritionLM() {
                                     >
                                         <Scale className="w-4 h-4" />
                                         Compare
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setActiveButton(activeButton === 'nutrition' ? null : 'nutrition')}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        style={{
+                                            backgroundColor: activeButton === 'nutrition' ? COLOR_NUTRITION : COLOR_NUTRITION_LIGHT,
+                                            color: activeButton === 'nutrition' ? 'white' : COLOR_ACCENT_DARK
+                                        }}
+                                    >
+                                        <UtensilsCrossed className="w-4 h-4" />
+                                        Nutrition Check
                                     </button>
                                 </div>
 
