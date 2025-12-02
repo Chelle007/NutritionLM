@@ -1,6 +1,7 @@
 "use client";
 
 import React from 'react';
+import Link from 'next/link';
 import { Sparkles, Menu, X, Plus, FileText } from 'lucide-react';
 import {
     COLOR_SECONDARY_LIGHT,
@@ -100,7 +101,11 @@ export default function Sidebar({
                 </div>
                 
                 <div className={`p-4 border-t ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`} style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                    <div className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer">
+                    <Link 
+                        href="/profile"
+                        className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
+                        onClick={() => isMobile && setIsSidebarOpen(false)}
+                    >
                         <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
                             CB
                         </div>
@@ -108,7 +113,7 @@ export default function Sidebar({
                             <div className="text-sm font-medium text-white">Cool Beans</div>
                             <div className="text-xs text-gray-400">Pro Plan</div>
                         </div>
-                    </div>
+                    </Link>
                 </div>
             </div>
 
