@@ -50,12 +50,15 @@ export default function NutritionLM() {
     
     // Attachment State
     const [attachment, setAttachment] = useState(null); // { file: File, preview: string }
+    const [scanningAttachment, setScanningAttachment] = useState(null); // For scanning animation
     const fileInputRef = useRef(null);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isThinking, setIsThinking] = useState(false);
     const [activeButton, setActiveButton] = useState(null); 
     const [isInputFocused, setIsInputFocused] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [scanProgress, setScanProgress] = useState({ stage: 0, message: '' });
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
@@ -291,7 +294,12 @@ export default function NutritionLM() {
             let foodName = '';
             let ingredients = [];
 
+            // Stage 1: Scanning food image (if image provided)
             if (attachmentData?.file) {
+                setScanProgress({ stage: 1, message: 'Scanning food image...' });
+                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for UX
+                
+                setScanProgress({ stage: 2, message: 'Analyzing ingredients...' });
                 const formData = new FormData();
                 formData.append("image", attachmentData.file);
 
@@ -309,6 +317,7 @@ export default function NutritionLM() {
                 foodName = data.food_name || 'Detected Food';
                 ingredients = data.ingredients || [];
             } else {
+                setScanProgress({ stage: 2, message: 'Analyzing ingredients...' });
                 const parsed = parseNutritionInput(messageText);
                 foodName = parsed.foodName;
                 ingredients = parsed.ingredients;
@@ -317,6 +326,10 @@ export default function NutritionLM() {
             if (!foodName || ingredients.length === 0) {
                 throw new Error("Please provide a food name and at least one ingredient.");
             }
+
+            // Stage 3: Extracting nutrition data
+            setScanProgress({ stage: 3, message: 'Extracting nutrition data...' });
+            await new Promise(resolve => setTimeout(resolve, 300)); // Small delay for UX
 
             const nutritionResponse = await fetch("/api/nutritionist", {
                 method: "POST",
@@ -335,14 +348,32 @@ export default function NutritionLM() {
                 throw new Error(nutritionData.error || "Failed to get nutrition data");
             }
 
+            // Stage 4: Generating breakdown
+            setScanProgress({ stage: 4, message: 'Generating nutrition breakdown...' });
+            
+            // Stop scanning and thinking immediately to prevent extra render
+            setIsScanning(false);
+            setIsThinking(false);
+            setScanProgress({ stage: 0, message: '' });
+
             const nutritionMessage = {
                 id: Date.now() + 1,
                 role: 'ai',
                 text: `**Nutrition Analysis for ${foodName}**\n\n**Ingredients:** ${ingredients.join(', ')}\n\n**Nutrition Breakdown:**`,
                 nutritionData: nutritionData.nutritions,
                 nutritionImage: attachmentData?.preview || null,
+                showScanAnimation: true, // Flag to show scanning animation initially
             };
             setMessages(prev => [...prev, nutritionMessage]);
+            
+            // Hide scanning animation on image after 2 seconds
+            setTimeout(() => {
+                setMessages(prev => prev.map(msg => 
+                    msg.id === nutritionMessage.id 
+                        ? { ...msg, showScanAnimation: false }
+                        : msg
+                ));
+            }, 2000);
         } catch (error) {
             setMessages(prev => [
                 ...prev,
@@ -405,9 +436,16 @@ export default function NutritionLM() {
         if (isNutritionMode) {
             try {
                 setIsThinking(true);
+                setIsScanning(true);
+                setScanningAttachment(currentAttachment); // Store attachment for scanning animation
+                setScanProgress({ stage: 0, message: 'Initializing nutrition check...' });
                 await runNutritionCheck(currentInput, currentAttachment);
             } finally {
+                // Clean up scanning state (already stopped in runNutritionCheck, but ensure cleanup)
                 setIsThinking(false);
+                setIsScanning(false);
+                setScanningAttachment(null);
+                setScanProgress({ stage: 0, message: '' });
                 setActiveButton(null);
             }
             return;
@@ -759,12 +797,23 @@ export default function NutritionLM() {
                                     >
                                         {/* Render Image in chat history */}
                                         {(msg.image || msg.nutritionImage) && (
-                                            <div className="mb-2">
+                                            <div className="mb-2 relative">
                                                 <img 
                                                     src={msg.image || msg.nutritionImage} 
                                                     alt={msg.role === 'user' ? "User Upload" : "Food Image"} 
                                                     className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm max-h-64 object-cover"
                                                 />
+                                                {/* Scanning animation overlay for nutrition images */}
+                                                {msg.nutritionImage && msg.nutritionData && msg.showScanAnimation && (
+                                                    <div className="absolute inset-0 rounded-lg pointer-events-none overflow-hidden transition-opacity duration-1000">
+                                                        <div className="absolute w-full h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-scanLine" 
+                                                             style={{ 
+                                                                 boxShadow: '0 0 10px rgba(251, 191, 36, 0.6)',
+                                                                 top: '0%'
+                                                             }}></div>
+                                                        <div className="absolute inset-0 border-2 border-amber-400 rounded-lg animate-scanPulse opacity-30"></div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
@@ -888,9 +937,87 @@ export default function NutritionLM() {
                                     <Sparkles className="w-4 h-4" />
                                 </div>
                                 <div className="flex flex-col max-w-[80%] items-start">
-                                    <div className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse">
-                                        NutritionLM is thinking...
-                                    </div>
+                                    {isScanning ? (
+                                        <div className="relative bg-white rounded-2xl p-6 border border-gray-200 shadow-sm min-w-[450px] max-w-[500px]">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                                    {scanningAttachment?.preview ? (
+                                                        <>
+                                                            <img 
+                                                                src={scanningAttachment.preview} 
+                                                                alt="Scanning" 
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            {/* Scanning overlay */}
+                                                            <div className="absolute inset-0 pointer-events-none">
+                                                                <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-scanLine" 
+                                                                     style={{ 
+                                                                         boxShadow: '0 0 15px rgba(251, 191, 36, 0.8)',
+                                                                         top: '0%'
+                                                                     }}></div>
+                                                            </div>
+                                                            {/* Pulse effect */}
+                                                            <div className="absolute inset-0 border-2 border-amber-400 rounded-lg animate-scanPulse pointer-events-none"></div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <UtensilsCrossed className="w-8 h-8 text-gray-400" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-base font-semibold text-gray-800 mb-1.5">
+                                                        {scanProgress.message || 'Scanning food...'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {scanProgress.stage === 1 && 'Identifying food items...'}
+                                                        {scanProgress.stage === 2 && 'Detecting ingredients from image...'}
+                                                        {scanProgress.stage === 3 && 'Calculating nutritional values...'}
+                                                        {scanProgress.stage === 4 && 'Preparing final report...'}
+                                                        {scanProgress.stage === 0 && 'Initializing scan...'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 1 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 2 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 3 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 4 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse">
+                                            NutritionLM is thinking...
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
