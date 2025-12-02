@@ -186,4 +186,7 @@ Write your response in a friendly, encouraging tone. Be specific and actionable.
     );
   }
 }
-
+// example response
+// {
+//     "recommendation": "You are doing great! Keep up the good work."
+// }
