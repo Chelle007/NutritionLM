@@ -41,10 +41,12 @@ export async function POST(req: NextRequest) {
           CRITICAL: Ensure the citation numbers [1] in the text correspond exactly to the index (1-based) of the source in the "sources" list.
       `;
     }
-    
+
     // 2b. Handle "Fact Check" Mode
     else if (factCheck) {
         modelConfig.tools = [{ googleSearch: {} }];
+
+        systemInstruction = "You are a helpful nutrition assistant. The user wants a factual fact check on the topic."
     }
 
     const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
