@@ -188,7 +188,8 @@ export default function NutritionLM() {
                 },
                 body: JSON.stringify({ 
                     message: currentInput,
-                    image: imageData
+                    image: imageData,
+                    factCheck: activeButton === 'factCheck'
                 }),
             });
 
@@ -209,6 +210,7 @@ export default function NutritionLM() {
 
             const data = await res.json();
             const reply = data.reply || "Gemini returned an empty response.";
+            const citations = data.citations || [];
 
             setMessages(prev => [
                 ...prev,
@@ -216,6 +218,7 @@ export default function NutritionLM() {
                     id: Date.now() + 1,
                     role: 'ai',
                     text: reply,
+                    citations: citations
                 }
             ]);
         } catch (error) {
@@ -378,6 +381,30 @@ export default function NutritionLM() {
                                             >
                                                 {msg.text}
                                             </ReactMarkdown>
+                                        )}
+                                        
+                                        {/* Display Citations if available */}
+                                        {msg.citations && msg.citations.length > 0 && (
+                                            <div className="mt-3 pt-3 border-t border-gray-200">
+                                                <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
+                                                    <ShieldCheck className="w-3 h-3" />
+                                                    Sources:
+                                                </div>
+                                                <div className="space-y-1.5">
+                                                    {msg.citations.map((citation, idx) => (
+                                                        <a
+                                                            key={idx}
+                                                            href={citation.uri}
+                                                            target="_blank"
+                                                            rel="noopener noreferrer"
+                                                            className="block text-xs text-blue-600 hover:text-blue-800 hover:underline truncate"
+                                                            title={citation.uri}
+                                                        >
+                                                            {idx + 1}. {citation.title || citation.uri}
+                                                        </a>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         )}
                                     </div>
                                 </div>
