@@ -48,6 +48,7 @@ export default function NutritionLM() {
     const [telegramVerified, setTelegramVerified] = useState(false);
     const [googleFitVerified, setGoogleFitVerified] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
+    const [telegramPhotos, setTelegramPhotos] = useState([]);
 
     // Handle responsive detection
     useEffect(() => {
@@ -83,6 +84,54 @@ export default function NutritionLM() {
         }
         loadUser();
     }, []);
+
+    useEffect(() => {
+        async function loadTelegramPhotos() {
+            if (!telegramVerified) return;
+
+            const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+                process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+            );
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) return;
+
+            const { data: rows, error } = await supabase
+                .from("telegram_photos")
+                .select("*")
+                .eq("user_id", user.id);
+
+            if (error && (Object.keys(error).length > 0 || error.message)) {
+                console.error("Error loading telegram photos:", error);
+                return;
+            }
+
+            if (!rows || rows.length === 0) {
+                setTelegramPhotos([]);
+                return;
+            }
+
+            const photoUrls = await Promise.all(
+                rows.map(async (item) => {
+                    const { data } = supabase
+                        .storage
+                        .from("telegram_photos")
+                        .getPublicUrl(item.file_path);
+
+                    return {
+                        id: item.id,
+                        url: data.publicUrl,
+                        file_path: item.file_path
+                    };
+                })
+            );
+
+            setTelegramPhotos(photoUrls);
+        }
+
+        loadTelegramPhotos();
+    }, [telegramVerified]);
 
     async function openOtpBox() {
         setShowOtpBox(true);
@@ -562,6 +611,8 @@ export default function NutritionLM() {
                 setIsSidebarOpen={setIsSidebarOpen}
                 isMobile={isMobile}
                 sources={sources}
+                telegramPhotos={telegramPhotos}
+                setAttachment={setAttachment}
             />
 
             {/* CHAT AREA */}

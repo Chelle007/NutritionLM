@@ -14,7 +14,9 @@ export default function Sidebar({
     isSidebarOpen, 
     setIsSidebarOpen, 
     isMobile,
-    sources = []
+    sources = [],
+    telegramPhotos = [],      
+    setAttachment={setAttachment}             
 }) {
     const [userFullName, setUserFullName] = useState('User');
 
@@ -94,8 +96,47 @@ export default function Sidebar({
                 </div>
 
                 <div className={`p-4 flex-1 overflow-y-auto ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`}>
+
+                    <div className="mb-6">
+                        <div className="flex justify-between items-center mb-3">
+                            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                Library
+                            </h2>
+                        </div>
+
+                        <div className="border border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/10 transition-colors"
+                            style={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}
+                        >
+                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-2">
+                                📸
+                            </div>
+                            <span className="text-sm font-medium text-white">Uploaded Photos from Telegram</span>
+                            <span className="text-xs text-gray-400">
+                                {telegramPhotos.length === 0 ? "No photos yet" : `${telegramPhotos.length} photos`}
+                            </span>
+                        </div>
+
+                        {telegramPhotos.length > 0 && (
+                            <div className="mt-3 space-y-2">
+                                {telegramPhotos.map((photo, index) => (
+                                    <div 
+                                        key={index} 
+                                        className="bg-white/10 rounded-lg overflow-hidden cursor-pointer hover:bg-white/20 transition"
+                                        onClick={() => setAttachment({ file: null, preview: photo.url })}
+                                    >
+                                        <img src={photo.url} className="w-full h-24 object-cover" />
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+
+
+
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Sources ({sources.length})</h2>
+                        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                            Sources ({sources.length})
+                        </h2>
                         <button className="text-gray-400 hover:text-white">
                             <Plus className="w-4 h-4" />
                         </button>
@@ -143,7 +184,6 @@ export default function Sidebar({
                 </div>
             </div>
 
-            {/* Overlay for mobile sidebar */}
             {isSidebarOpen && (
                 <div 
                     className="fixed inset-0 bg-black/50 z-30 md:hidden"
@@ -153,4 +193,3 @@ export default function Sidebar({
         </>
     );
 }
-
