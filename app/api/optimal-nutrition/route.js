@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { getUserPreference } from '@/services/user';
+import { insertNutritionGoals } from '@/services/userPreference';
 
 // Request body: user_preference object
 export async function POST(request) {
@@ -64,7 +65,10 @@ Example format:
       );
     }
 
-    return Response.json({ nutrition_goals: parsedData });
+    const nutritionGoals = await insertNutritionGoals(parsedData);
+    console.log("nutritionGoals:", nutritionGoals);
+
+    return Response.json({ nutritionGoals: nutritionGoals });
   } catch (error) {
     console.error("Error in nutritionist API:", error);
     return Response.json(
