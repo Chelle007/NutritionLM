@@ -162,7 +162,7 @@ export default function NutritionLM() {
                 const reader = new FileReader();
                 imageData = await new Promise((resolve, reject) => {
                     reader.onload = () => {
-                        const base64 = reader.result.split(',')[1]; // Remove data:image/...;base64, prefix
+                        const base64 = reader.result.split(',')[1];
                         resolve({
                             data: base64,
                             mimeType: attachment.file.type || 'image/jpeg'
