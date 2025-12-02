@@ -1,40 +1,106 @@
-// app/api/chat/route.ts
+// [START] documentation reference: https://ai.google.dev/gemini-api/docs/models | https://ai.google.dev/gemini-api/docs
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing API Key");
+
+    const { message, image, factCheck, compare } = await req.json();
     
-    // DEBUG LOG 1: Check if key exists (don't log the full key for security)
-    console.log("Server API Key Check:", apiKey ? `Present (Starts with ${apiKey.substring(0, 4)}...)` : "Missing");
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not set on the server." },
-        { status: 500 }
-      );
-    }
-
-    const { message } = await req.json();
-    console.log("Received message:", message); // DEBUG LOG 2
-
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Try "gemini-pro" if "gemini-1.5-flash" fails, sometimes region/tier specific
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
-        
-    const result = await model.generateContent(message);
-    const responseText = result.response.text();
+    // 1. Base Configuration
+    let modelConfig: any = { 
+        model: "gemini-2.0-flash-exp",
+    };
 
-    return NextResponse.json({ reply: responseText || "" });
+    let systemInstruction = "";
+
+    // 2a. Handle "Compare" Mode
+    if (compare) {
+      modelConfig.generationConfig = { responseMimeType: "application/json" };
+      modelConfig.tools = [{ googleSearch: {} }]; 
+      
+      systemInstruction = `
+          You are a helpful nutrition assistant. 
+          The user wants a factual comparison on the topic. 
+          
+          1. FIRST, use Google Search to find the latest scientific consensus.
+          2. THEN, analyze the topic from two distinct perspectives.
+          3. Use inline citations like [1], [2] in your bullet points and summary to verify your claims.
+          4. FINALLY, return the result in this EXACT JSON format:
+          {
+              "sideA": { "title": "Title", "points": ["point 1 [1]", "point 2 [2]"] },
+              "sideB": { "title": "Title", "points": ["point 3 [1]", "point 4 [3]"] },
+              "summary": "A balanced 2-sentence conclusion [2].",
+              "sources": [
+                  { "title": "Source Title", "uri": "URL" }
+              ]
+          }
+          CRITICAL: Ensure the citation numbers [1] in the text correspond exactly to the index (1-based) of the source in the "sources" list.
+      `;
+    }
+
+    // 2b. Handle "Fact Check" Mode
+    else if (factCheck) {
+        modelConfig.tools = [{ googleSearch: {} }];
+
+        systemInstruction = "You are a helpful nutrition assistant. The user wants a factual fact check on the topic."
+    }
+
+    const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
+
+    // 3. Build Prompt
+    const parts = [];
+    if (image?.data) {
+        parts.push({ inlineData: { mimeType: image.mimeType, data: image.data }});
+    }
+
+    let textMessage = message || (image ? "Analyze this image" : "");
+
+    if (compare) {
+        textMessage = `Search the web and compare perspectives on: "${textMessage}"`;
+    } 
+    else if (factCheck) {
+        textMessage = `Research and summarize: ${textMessage}`;
+    }
+
+    parts.push({ text: textMessage });
+
+    const result = await model.generateContent(parts);
+    const response = result.response;
+    const responseText = response.text();
+
+    // 4. Extract Grounding Metadata (Citations)
+    // This works for both Compare and Fact Check modes automatically
+    let citations: any[] = [];
+    if (response.candidates?.[0]?.groundingMetadata) {
+      const { groundingChunks } = response.candidates[0].groundingMetadata;
+      citations = (groundingChunks || [])
+        .map((chunk: any) => {
+          if (chunk.web?.uri) {
+            return {
+              title: chunk.web.title || chunk.web.uri,
+              uri: chunk.web.uri,
+              snippet: chunk.web.snippet || ""
+            };
+          }
+          return null;
+        })
+        .filter(Boolean);
+    }
+
+    return NextResponse.json({ 
+        reply: responseText, 
+        isComparison: compare,
+        citations: citations 
+    });
+
   } catch (error: any) {
-    // DEBUG LOG 3: Print the FULL error object
-    console.error("FULL GEMINI ERROR:", JSON.stringify(error, null, 2));
-    
-    return NextResponse.json(
-      { error: error.message || "Failed to generate response from Gemini." },
-      { status: 500 }
-    );
+    console.error("API Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+// [END]

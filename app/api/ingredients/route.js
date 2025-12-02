@@ -1,4 +1,4 @@
-// Reference: https://ai.google.dev/gemini-api/docs/image-understanding
+// [START] documentation reference: https://ai.google.dev/gemini-api/docs/image-understanding
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(request) {
@@ -104,3 +104,4 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
 //     'Pickled vegetables'
 //   ]
 // }
+// [END]
