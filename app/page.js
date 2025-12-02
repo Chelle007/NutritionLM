@@ -226,8 +226,8 @@ export default function NutritionLM() {
     ];
 
     const suggestedPrompts = [
-        "Summarize my diet plan",
-        "Create a grocery list based on my allergies"
+        "Diet plan summary",
+        "Grocery list based on my allergies"
     ];
 
     const scrollToBottom = () => {
