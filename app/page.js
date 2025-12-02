@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
     Send, 
     Paperclip, 
@@ -8,7 +9,7 @@ import {
     Menu, 
     Plus, 
     FileText, 
-    MoreVertical, 
+    BarChart3, 
     X,
     ShieldCheck,
     Scale,
@@ -31,6 +32,7 @@ const COLOR_NUTRITION = '#F59E0B';
 const COLOR_NUTRITION_LIGHT = '#FEF3C7';
 
 export default function NutritionLM() {
+    const router = useRouter();
     const [otp, setOtp] = useState(null);
     const [otpVisible, setOtpVisible] = useState(false);
     const [showOtpBox, setShowOtpBox] = useState(false);
@@ -676,8 +678,12 @@ export default function NutritionLM() {
                             </button>
                         )}
 
-                        <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
-                            <MoreVertical className="w-5 h-5" />
+                        <button 
+                            onClick={() => router.push('/analytics')}
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+                            title="View Analytics"
+                        >
+                            <BarChart3 className="w-5 h-5" />
                         </button>
 
                     </div>
