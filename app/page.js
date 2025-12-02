@@ -83,6 +83,29 @@ export default function NutritionLM() {
         loadUser();
     }, []);
 
+    async function openOtpBox() {
+        setShowOtpBox(true);
+
+        const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+        );
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+            .from("users")
+            .select("telegram_otp")
+            .eq("id", user.id)
+            .single();
+
+        if (data?.telegram_otp) {
+            setOtp(data.telegram_otp);
+            setOtpVisible(false);
+        }
+    }
+
     // Handle OAuth callback
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
@@ -459,7 +482,7 @@ export default function NutritionLM() {
                             </span>
                         ) : (
                             <button
-                                onClick={() => setShowOtpBox(true)}
+                                onClick={openOtpBox}
                                 className="px-3 py-1 text-sm text-white rounded-full transition"
                                 style={{ backgroundColor: '#0088CC' }}
                                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0077B5'}
@@ -524,7 +547,7 @@ export default function NutritionLM() {
                                 {/* OTP Display */}
                                 <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
                                     <span className="font-mono tracking-widest text-xl">
-                                        {otpVisible ? otp : "••••••"}
+                                        {otp !== null ? (otpVisible ? otp : "••••••") : "No OTP Yet"}
                                     </span>
 
                                     <button
