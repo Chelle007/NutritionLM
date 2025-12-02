@@ -116,7 +116,6 @@ export default function NutritionLM() {
         scrollToBottom();
     }, [messages]);
 
-    // Handle Image Selection
     const handleFileSelect = (e) => {
         const file = e.target.files[0];
         if (file) {
@@ -130,12 +129,36 @@ export default function NutritionLM() {
         e.target.value = null; 
     };
 
-    // Remove Attachment
     const removeAttachment = () => {
         if (attachment?.preview) {
             URL.revokeObjectURL(attachment.preview);
         }
         setAttachment(null);
+    };
+
+    const extractFirstJson = (text) => {
+        const startIndex = text.indexOf('{');
+        if (startIndex === -1) return null;
+    
+        let braceCount = 0;
+        let endIndex = -1;
+    
+        for (let i = startIndex; i < text.length; i++) {
+            if (text[i] === '{') {
+                braceCount++;
+            } else if (text[i] === '}') {
+                braceCount--;
+                if (braceCount === 0) {
+                    endIndex = i;
+                    break;
+                }
+            }
+        }
+    
+        if (endIndex !== -1) {
+            return text.substring(startIndex, endIndex + 1);
+        }
+        return null;
     };
 
     const handleSend = async () => {
@@ -189,7 +212,8 @@ export default function NutritionLM() {
                 body: JSON.stringify({ 
                     message: currentInput,
                     image: imageData,
-                    factCheck: activeButton === 'factCheck'
+                    factCheck: activeButton === 'factCheck',
+                    compare: activeButton === 'compare',
                 }),
             });
 
@@ -209,16 +233,35 @@ export default function NutritionLM() {
             }
 
             const data = await res.json();
-            const reply = data.reply || "Gemini returned an empty response.";
-            const citations = data.citations || [];
+
+            let finalCitations = data.citations || []; 
+            let parsedComparison = null;
+
+            if (data.isComparison) {
+                try {
+                    const cleanJsonString = extractFirstJson(data.reply);
+                    
+                    if (cleanJsonString) {
+                        parsedComparison = JSON.parse(cleanJsonString);
+                        
+                        if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
+                            finalCitations = parsedComparison.sources;
+                        }
+                    } 
+                } catch (e) {
+                    console.error("JSON Parse Error:", e);
+                    parsedComparison = null; 
+                }
+            }
 
             setMessages(prev => [
                 ...prev,
                 {
                     id: Date.now() + 1,
                     role: 'ai',
-                    text: reply,
-                    citations: citations
+                    text: parsedComparison ? parsedComparison.summary : data.reply,
+                    comparisonData: parsedComparison,
+                    citations: finalCitations
                 }
             ]);
         } catch (error) {
@@ -370,7 +413,49 @@ export default function NutritionLM() {
                                             </div>
                                         )}
 
-                                        {msg.text && (
+                                        {msg.comparisonData ? (
+                                            <div className="flex flex-col gap-3 w-full min-w-[300px] md:min-w-[400px]">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {/* Left Column */}
+                                                    <div className="bg-white/50 rounded-xl p-3 border border-green-100">
+                                                        <h4 className="font-bold text-green-700 mb-2 border-b border-green-100 pb-1">
+                                                            {msg.comparisonData.sideA.title}
+                                                        </h4>
+                                                        <ul className="space-y-1.5">
+                                                            {msg.comparisonData.sideA.points.map((pt, i) => (
+                                                                <li key={i} className="flex items-start gap-2 text-xs">
+                                                                    <span className="text-green-500 mt-0.5">•</span>
+                                                                    <span>{pt}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+
+                                                    {/* Right Column */}
+                                                    <div className="bg-white/50 rounded-xl p-3 border border-orange-100">
+                                                        <h4 className="font-bold text-orange-700 mb-2 border-b border-orange-100 pb-1">
+                                                            {msg.comparisonData.sideB.title}
+                                                        </h4>
+                                                        <ul className="space-y-1.5">
+                                                            {msg.comparisonData.sideB.points.map((pt, i) => (
+                                                                <li key={i} className="flex items-start gap-2 text-xs">
+                                                                    <span className="text-orange-500 mt-0.5">•</span>
+                                                                    <span>{pt}</span>
+                                                                </li>
+                                                            ))}
+                                                        </ul>
+                                                    </div>
+                                                </div>
+                                                
+                                                {/* Summary Footer */}
+                                                <div className="text-xs italic text-gray-500 bg-white/30 p-2 rounded-lg border border-gray-100">
+                                                    <span className="font-bold">Summary: </span>
+                                                    {msg.comparisonData.summary}
+                                                </div>
+                                            </div>
+                                        ) : (
+                                        // Standard Text Render
+                                        msg.text && (
                                             <ReactMarkdown 
                                                 components={{
                                                     p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
@@ -382,6 +467,7 @@ export default function NutritionLM() {
                                             >
                                                 {msg.text}
                                             </ReactMarkdown>
+                                            )
                                         )}
                                         
                                         {/* Display Citations if available */}
