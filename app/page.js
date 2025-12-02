@@ -12,7 +12,8 @@ import {
     X,
     ShieldCheck,
     Scale,
-    Image as ImageIcon
+    Image as ImageIcon,
+    CheckCircle
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
@@ -442,12 +443,18 @@ export default function NutritionLM() {
                             </button>
                         )}
                         {googleFitVerified ? (
-                            <span 
-                                className="px-3 py-1 text-sm text-white rounded-full font-medium cursor-not-allowed opacity-90"
-                                style={{ backgroundColor: COLOR_FACT_CHECK }}
+                            <div 
+                                className="px-3 py-1 text-sm rounded-full font-medium flex items-center gap-1.5 border-2"
+                                style={{ 
+                                    backgroundColor: '#E8F5E9',
+                                    color: '#2E7D32',
+                                    borderColor: '#4CAF50',
+                                    cursor: 'default'
+                                }}
                             >
+                                <CheckCircle className="w-4 h-4" style={{ color: '#4CAF50' }} />
                                 Google Fit Connected
-                            </span>
+                            </div>
                         ) : (
                             <button
                                 onClick={connectGoogleFit}
