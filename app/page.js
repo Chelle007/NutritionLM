@@ -17,7 +17,7 @@ import {
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
 
-// COLOR PALETTE DEFINITION
+//Color Paletter (As per provided by Rey)
 const COLOR_PRIMARY = "#4CAF50";      
 const COLOR_SECONDARY_LIGHT = "#C8E6C9";    
 const COLOR_ACCENT_DARK = "#34495E";  
@@ -26,6 +26,7 @@ const COLOR_FACT_CHECK = "#26A69A";
 const COLOR_FACT_CHECK_LIGHT = "#B2DFDB";  
 const COLOR_COMPARE = "#66BB6A";  
 const COLOR_COMPARE_LIGHT = "#C8E6C9";  
+
 
 export default function NutritionLM() {
     const [messages, setMessages] = useState([
@@ -245,7 +246,8 @@ export default function NutritionLM() {
                 transition-all duration-300 ease-in-out border-r border-gray-200 flex flex-col shrink-0`}
                 style={{ backgroundColor: COLOR_ACCENT_DARK }}
             >
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+                    {/* Logo/Header: Uses the corrected local file path for the image */}
                     <div className="flex items-center gap-2 font-bold text-xl text-white">
                         <img 
                             src="/nutritionlm.png" 
