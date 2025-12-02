@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { 
     Send, 
     Paperclip, 
@@ -8,12 +9,12 @@ import {
     Menu, 
     Plus, 
     FileText, 
-    MoreVertical, 
+    BarChart3, 
     X,
     ShieldCheck,
     Scale,
-    Image as ImageIcon,
-    CheckCircle
+    CheckCircle,
+    UtensilsCrossed
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
@@ -27,8 +28,11 @@ const COLOR_FACT_CHECK = "#26A69A";
 const COLOR_FACT_CHECK_LIGHT = "#B2DFDB";  
 const COLOR_COMPARE = "#66BB6A";  
 const COLOR_COMPARE_LIGHT = "#C8E6C9";  
+const COLOR_NUTRITION = '#F59E0B';
+const COLOR_NUTRITION_LIGHT = '#FEF3C7';
 
 export default function NutritionLM() {
+    const router = useRouter();
     const [otp, setOtp] = useState(null);
     const [otpVisible, setOtpVisible] = useState(false);
     const [showOtpBox, setShowOtpBox] = useState(false);
@@ -48,12 +52,15 @@ export default function NutritionLM() {
     
     // Attachment State
     const [attachment, setAttachment] = useState(null); // { file: File, preview: string }
+    const [scanningAttachment, setScanningAttachment] = useState(null); // For scanning animation
     const fileInputRef = useRef(null);
 
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isThinking, setIsThinking] = useState(false);
     const [activeButton, setActiveButton] = useState(null); 
     const [isInputFocused, setIsInputFocused] = useState(false);
+    const [isScanning, setIsScanning] = useState(false);
+    const [scanProgress, setScanProgress] = useState({ stage: 0, message: '' });
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
@@ -247,6 +254,140 @@ export default function NutritionLM() {
         setAttachment(null);
     };
 
+    const parseNutritionInput = (inputText = '') => {
+        const text = inputText.trim();
+        if (!text) {
+            return { foodName: '', ingredients: [] };
+        }
+
+        const lines = text.split('\n').map((line) => line.trim()).filter(Boolean);
+        let foodName = '';
+        let ingredients = [];
+
+        if (text.includes(':')) {
+            const colonIndex = text.indexOf(':');
+            foodName = text.substring(0, colonIndex).trim() || 'Custom Food';
+            const ingredientsStr = text.substring(colonIndex + 1).trim();
+            ingredients = ingredientsStr.split(/[\n,]/)
+                .map((item) => item.trim())
+                .filter(Boolean);
+        } else if (lines.length > 1) {
+            foodName = lines[0];
+            ingredients = lines.slice(1)
+                .flatMap((line) => line.split(','))
+                .map((item) => item.trim())
+                .filter(Boolean);
+        } else {
+            const parts = text.split(',');
+            if (parts.length > 1) {
+                foodName = 'Custom Food';
+                ingredients = parts.map((item) => item.trim()).filter(Boolean);
+            } else {
+                foodName = text;
+                ingredients = [text];
+            }
+        }
+
+        return { foodName, ingredients };
+    };
+
+    const runNutritionCheck = async (messageText, attachmentData) => {
+        try {
+            let foodName = '';
+            let ingredients = [];
+
+            // Stage 1: Scanning food image (if image provided)
+            if (attachmentData?.file) {
+                setScanProgress({ stage: 1, message: 'Scanning food image...' });
+                await new Promise(resolve => setTimeout(resolve, 500)); // Small delay for UX
+                
+                setScanProgress({ stage: 2, message: 'Analyzing ingredients...' });
+                const formData = new FormData();
+                formData.append("image", attachmentData.file);
+
+                const response = await fetch("/api/ingredients", {
+                    method: "POST",
+                    body: formData,
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error || "Failed to process image");
+                }
+
+                foodName = data.food_name || 'Detected Food';
+                ingredients = data.ingredients || [];
+            } else {
+                setScanProgress({ stage: 2, message: 'Analyzing ingredients...' });
+                const parsed = parseNutritionInput(messageText);
+                foodName = parsed.foodName;
+                ingredients = parsed.ingredients;
+            }
+
+            if (!foodName || ingredients.length === 0) {
+                throw new Error("Please provide a food name and at least one ingredient.");
+            }
+
+            // Stage 3: Extracting nutrition data
+            setScanProgress({ stage: 3, message: 'Extracting nutrition data...' });
+            await new Promise(resolve => setTimeout(resolve, 300)); // Small delay for UX
+
+            const nutritionResponse = await fetch("/api/nutritionist", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    food_name: foodName,
+                    ingredients,
+                }),
+            });
+
+            const nutritionData = await nutritionResponse.json();
+
+            if (!nutritionResponse.ok) {
+                throw new Error(nutritionData.error || "Failed to get nutrition data");
+            }
+
+            // Stage 4: Generating breakdown
+            setScanProgress({ stage: 4, message: 'Generating nutrition breakdown...' });
+            
+            // Stop scanning and thinking immediately to prevent extra render
+            setIsScanning(false);
+            setIsThinking(false);
+            setScanProgress({ stage: 0, message: '' });
+
+            const nutritionMessage = {
+                id: Date.now() + 1,
+                role: 'ai',
+                text: `**Nutrition Analysis for ${foodName}**\n\n**Ingredients:** ${ingredients.join(', ')}\n\n**Nutrition Breakdown:**`,
+                nutritionData: nutritionData.nutritions,
+                nutritionImage: attachmentData?.preview || null,
+                showScanAnimation: true, // Flag to show scanning animation initially
+            };
+            setMessages(prev => [...prev, nutritionMessage]);
+            
+            // Hide scanning animation on image after 2 seconds
+            setTimeout(() => {
+                setMessages(prev => prev.map(msg => 
+                    msg.id === nutritionMessage.id 
+                        ? { ...msg, showScanAnimation: false }
+                        : msg
+                ));
+            }, 2000);
+        } catch (error) {
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: Date.now() + 2,
+                    role: 'ai',
+                    text: `Nutrition check failed: ${error.message}`,
+                },
+            ]);
+        }
+    };
+
     const extractFirstJson = (text) => {
         const startIndex = text.indexOf('{');
         if (startIndex === -1) return null;
@@ -276,22 +417,45 @@ export default function NutritionLM() {
         // Allow send if text OR attachment exists
         if ((!input.trim() && !attachment) || isThinking) return;
 
+        const isNutritionMode = activeButton === 'nutrition';
+
+        const currentInput = input;
+        const currentAttachment = attachment;
+
         // Add User Message (Visual only)
         const userMsg = { 
             id: Date.now(), 
             role: 'user', 
-            text: input,
-            // Pass the image URL to the message list for visual rendering
-            image: attachment ? attachment.preview : null 
+            text: currentInput,
+            image: currentAttachment ? currentAttachment.preview : null 
         };
         
         setMessages(prev => [...prev, userMsg]);
         
-        const currentInput = input;
-        
-        // Convert image to base64 for backend
+        setInput('');
+        setAttachment(null); // Clear attachment from input area
+
+        if (isNutritionMode) {
+            try {
+                setIsThinking(true);
+                setIsScanning(true);
+                setScanningAttachment(currentAttachment); // Store attachment for scanning animation
+                setScanProgress({ stage: 0, message: 'Initializing nutrition check...' });
+                await runNutritionCheck(currentInput, currentAttachment);
+            } finally {
+                // Clean up scanning state (already stopped in runNutritionCheck, but ensure cleanup)
+                setIsThinking(false);
+                setIsScanning(false);
+                setScanningAttachment(null);
+                setScanProgress({ stage: 0, message: '' });
+                setActiveButton(null);
+            }
+            return;
+        }
+
+        // Convert image to base64 for backend chat flow
         let imageData = null;
-        if (attachment?.file) {
+        if (currentAttachment?.file) {
             try {
                 const reader = new FileReader();
                 imageData = await new Promise((resolve, reject) => {
@@ -299,20 +463,17 @@ export default function NutritionLM() {
                         const base64 = reader.result.split(',')[1];
                         resolve({
                             data: base64,
-                            mimeType: attachment.file.type || 'image/jpeg'
+                            mimeType: currentAttachment.file.type || 'image/jpeg'
                         });
                     };
                     reader.onerror = reject;
-                    reader.readAsDataURL(attachment.file);
+                    reader.readAsDataURL(currentAttachment.file);
                 });
             } catch (error) {
                 console.error("Error converting image to base64:", error);
             }
         }
         
-        setInput('');
-        setAttachment(null); // Clear attachment from input area
-
         try {
             setIsThinking(true);
             const res = await fetch("/api/chat", {
@@ -517,8 +678,12 @@ export default function NutritionLM() {
                             </button>
                         )}
 
-                        <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
-                            <MoreVertical className="w-5 h-5" />
+                        <button 
+                            onClick={() => router.push('/analytics')}
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
+                            title="View Analytics"
+                        >
+                            <BarChart3 className="w-5 h-5" />
                         </button>
 
                     </div>
@@ -637,13 +802,24 @@ export default function NutritionLM() {
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
                                     >
                                         {/* Render Image in chat history */}
-                                        {msg.image && (
-                                            <div className="mb-2">
+                                        {(msg.image || msg.nutritionImage) && (
+                                            <div className="mb-2 relative">
                                                 <img 
-                                                    src={msg.image} 
-                                                    alt="User Upload" 
+                                                    src={msg.image || msg.nutritionImage} 
+                                                    alt={msg.role === 'user' ? "User Upload" : "Food Image"} 
                                                     className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm max-h-64 object-cover"
                                                 />
+                                                {/* Scanning animation overlay for nutrition images */}
+                                                {msg.nutritionImage && msg.nutritionData && msg.showScanAnimation && (
+                                                    <div className="absolute inset-0 rounded-lg pointer-events-none overflow-hidden transition-opacity duration-1000">
+                                                        <div className="absolute w-full h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-scanLine" 
+                                                             style={{ 
+                                                                 boxShadow: '0 0 10px rgba(251, 191, 36, 0.6)',
+                                                                 top: '0%'
+                                                             }}></div>
+                                                        <div className="absolute inset-0 border-2 border-amber-400 rounded-lg animate-scanPulse opacity-30"></div>
+                                                    </div>
+                                                )}
                                             </div>
                                         )}
 
@@ -727,6 +903,35 @@ export default function NutritionLM() {
                                                 </div>
                                             </div>
                                         )}
+
+                                        {/* Display Nutrition Data if available */}
+                                        {msg.nutritionData && typeof msg.nutritionData === 'object' && (
+                                            <div className="mt-4 pt-4 border-t border-gray-200">
+                                                <div className="grid grid-cols-2 gap-3">
+                                                    {Object.entries(msg.nutritionData).map(([key, value]) => (
+                                                        <div key={key} className="bg-white/50 p-3 rounded-xl border border-gray-100">
+                                                            <div className="flex justify-between items-center mb-2">
+                                                                <span className="font-medium text-sm capitalize text-gray-700">
+                                                                    {key}
+                                                                </span>
+                                                                <span className="text-xs text-gray-600 font-semibold">
+                                                                    {value}%
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-gray-200 rounded-full h-2">
+                                                                <div
+                                                                    className="h-2 rounded-full transition-all"
+                                                                    style={{ 
+                                                                        width: `${Math.min(value, 100)}%`,
+                                                                        backgroundColor: COLOR_PRIMARY
+                                                                    }}
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 </div>
                             </div>
@@ -738,9 +943,87 @@ export default function NutritionLM() {
                                     <Sparkles className="w-4 h-4" />
                                 </div>
                                 <div className="flex flex-col max-w-[80%] items-start">
-                                    <div className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse">
-                                        NutritionLM is thinking...
-                                    </div>
+                                    {isScanning ? (
+                                        <div className="relative bg-white rounded-2xl p-6 border border-gray-200 shadow-sm min-w-[450px] max-w-[500px]">
+                                            <div className="flex items-center gap-4 mb-4">
+                                                <div className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                                    {scanningAttachment?.preview ? (
+                                                        <>
+                                                            <img 
+                                                                src={scanningAttachment.preview} 
+                                                                alt="Scanning" 
+                                                                className="w-full h-full object-cover"
+                                                            />
+                                                            {/* Scanning overlay */}
+                                                            <div className="absolute inset-0 pointer-events-none">
+                                                                <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-scanLine" 
+                                                                     style={{ 
+                                                                         boxShadow: '0 0 15px rgba(251, 191, 36, 0.8)',
+                                                                         top: '0%'
+                                                                     }}></div>
+                                                            </div>
+                                                            {/* Pulse effect */}
+                                                            <div className="absolute inset-0 border-2 border-amber-400 rounded-lg animate-scanPulse pointer-events-none"></div>
+                                                        </>
+                                                    ) : (
+                                                        <div className="w-full h-full flex items-center justify-center">
+                                                            <UtensilsCrossed className="w-8 h-8 text-gray-400" />
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                <div className="flex-1 min-w-0">
+                                                    <div className="text-base font-semibold text-gray-800 mb-1.5">
+                                                        {scanProgress.message || 'Scanning food...'}
+                                                    </div>
+                                                    <div className="text-sm text-gray-500">
+                                                        {scanProgress.stage === 1 && 'Identifying food items...'}
+                                                        {scanProgress.stage === 2 && 'Detecting ingredients from image...'}
+                                                        {scanProgress.stage === 3 && 'Calculating nutritional values...'}
+                                                        {scanProgress.stage === 4 && 'Preparing final report...'}
+                                                        {scanProgress.stage === 0 && 'Initializing scan...'}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div className="flex gap-2">
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 1 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 2 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 3 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
+                                                    <div 
+                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
+                                                        style={{ 
+                                                            width: scanProgress.stage >= 4 ? '100%' : '0%'
+                                                        }}
+                                                    ></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse">
+                                            NutritionLM is thinking...
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         )}
@@ -850,6 +1133,18 @@ export default function NutritionLM() {
                                     >
                                         <Scale className="w-4 h-4" />
                                         Compare
+                                    </button>
+
+                                    <button 
+                                        onClick={() => setActiveButton(activeButton === 'nutrition' ? null : 'nutrition')}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        style={{
+                                            backgroundColor: activeButton === 'nutrition' ? COLOR_NUTRITION : COLOR_NUTRITION_LIGHT,
+                                            color: activeButton === 'nutrition' ? 'white' : COLOR_ACCENT_DARK
+                                        }}
+                                    >
+                                        <UtensilsCrossed className="w-4 h-4" />
+                                        Nutrition Check
                                     </button>
                                 </div>
 
