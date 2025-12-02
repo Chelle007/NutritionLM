@@ -1,4 +1,4 @@
-// [START] referrence: https://supabase.com/docs/guides/auth/social-login/auth-google?queryGroups=framework&framework=nextjs&queryGroups=environment&environment=client
+// [START] documentation reference: https://supabase.com/docs/guides/auth/social-login/auth-google?queryGroups=framework&framework=nextjs&queryGroups=environment&environment=client
 "use client";
 
 import { createClient } from '../utils/supabase/client';
