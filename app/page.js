@@ -355,7 +355,7 @@ export default function NutritionLM() {
                                 </div>
 
                                 <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <div className={`text-sm leading-relaxed whitespace-pre-wrap py-2 px-4 rounded-2xl
+                                    <div className={`text-sm leading-relaxed py-2 px-4 rounded-2xl
                                         ${msg.role === 'user' ? `text-gray-900 rounded-tr-none` : 'bg-transparent text-gray-800 -ml-2'}`}
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
                                     >
@@ -373,6 +373,7 @@ export default function NutritionLM() {
                                         {msg.text && (
                                             <ReactMarkdown 
                                                 components={{
+                                                    p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
                                                     ul: ({node, ...props}) => <ul className="list-disc pl-5 mt-2 mb-2" {...props} />,
                                                     ol: ({node, ...props}) => <ol className="list-decimal pl-5 mt-2 mb-2" {...props} />,
                                                     li: ({node, ...props}) => <li className="mb-1" {...props} />,
