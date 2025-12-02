@@ -12,9 +12,9 @@ import {
     X
 } from 'lucide-react';
 
-// --- COLOR PALETTE DEFINITION ---
-const COLOR_PRIMARY = "#4CAF50";      // Forest Green
-const COLOR_SECONDARY_LIGHT = "#C8E6C9";    // Sage Green 
+//Color Paletter (As per provided by Rey)
+const COLOR_PRIMARY = "#4CAF50";      // Forest Green
+const COLOR_SECONDARY_LIGHT = "#C8E6C9";    // Sage Green 
 const COLOR_ACCENT_DARK = "#34495E";  // Dark Slate/Charcoal
 const COLOR_CONTENT_BG = "#F8F8F8";  // Light Grey/Off-white
 
@@ -82,11 +82,14 @@ export default function NutritionLM() {
                 // Sidebar Background: Dark Slate/Charcoal (#34495E)
                 style={{ backgroundColor: COLOR_ACCENT_DARK }}
             >
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                    {/* Logo/Header: Text and Icon color is White for contrast on Dark Slate */}
+                <div className="p-4 border-b border-gray-100 flex justify-between items-center" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+                    {/* Logo/Header: Uses the corrected local file path for the image */}
                     <div className="flex items-center gap-2 font-bold text-xl text-white">
-                        <Sparkles className="w-6 h-6 fill-current" />
-                        <span>NutritionLM</span>
+                        <img 
+                            src="/nutritionlm.png" 
+                            alt="NutritionLM Logo" 
+                            className="w-full h-auto" 
+                        />
                     </div>
                 </div>
 
