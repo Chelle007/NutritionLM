@@ -21,6 +21,10 @@ const COLOR_PRIMARY = "#4CAF50";      // Forest Green
 const COLOR_SECONDARY_LIGHT = "#C8E6C9";    // Sage Green 
 const COLOR_ACCENT_DARK = "#34495E";  // Dark Slate/Charcoal
 const COLOR_CONTENT_BG = "#F8F8F8";  // Light Grey/Off-white
+const COLOR_FACT_CHECK = "#26A69A";  // Teal-Green for Fact Check (subtle variation)
+const COLOR_FACT_CHECK_LIGHT = "#B2DFDB";  // Light Teal-Green for Fact Check inactive
+const COLOR_COMPARE = "#66BB6A";  // Lighter Green for Compare (subtle variation)
+const COLOR_COMPARE_LIGHT = "#C8E6C9";  // Sage Green for Compare inactive (same as secondary)
 
 export default function NutritionLM() {
     const [messages, setMessages] = useState([
@@ -34,6 +38,7 @@ export default function NutritionLM() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(true);
     const [isThinking, setIsThinking] = useState(false);
     const [activeButton, setActiveButton] = useState(null); // 'factCheck', 'compare', or null
+    const [isInputFocused, setIsInputFocused] = useState(false);
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
@@ -91,9 +96,9 @@ export default function NutritionLM() {
     }
 
     const sources = [
-        { id: 1, title: 'My Diet Plan (Nov).docx', type: 'DOC', color: 'bg-blue-100 text-blue-700' },
-        { id: 2, title: 'Vitamin D Research', type: 'TXT', color: 'bg-green-100 text-green-700' },
-        { id: 3, title: 'My Allergies List', type: 'PDF', color: 'bg-purple-100 text-purple-700' },
+        { id: 1, title: 'My Diet Plan (Nov).docx', type: 'DOC', color: COLOR_SECONDARY_LIGHT, textColor: COLOR_ACCENT_DARK },
+        { id: 2, title: 'Vitamin D Research', type: 'TXT', color: COLOR_SECONDARY_LIGHT, textColor: COLOR_ACCENT_DARK },
+        { id: 3, title: 'My Allergies List', type: 'PDF', color: COLOR_SECONDARY_LIGHT, textColor: COLOR_ACCENT_DARK },
     ];
 
     const suggestedPrompts = [
@@ -170,18 +175,16 @@ export default function NutritionLM() {
     };
 
     return (
-        // Main Background: Light Grey/Off-white (#F8F8F8)
         <div className="flex h-screen font-sans text-gray-800 overflow-hidden" style={{ backgroundColor: COLOR_CONTENT_BG }}>
             
             {/* LEFT SIDEBAR */}
             <div 
                 className={`${isSidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'} 
                 transition-all duration-300 ease-in-out border-r border-gray-200 flex flex-col shrink-0`}
-                // Sidebar Background: Dark Slate/Charcoal (#34495E)
                 style={{ backgroundColor: COLOR_ACCENT_DARK }}
             >
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                    {/* Logo/Header: Text and Icon color is White for contrast on Dark Slate */}
+                    {/* Logo/Header */}
                     <div className="flex items-center gap-2 font-bold text-xl text-white">
                         <Sparkles className="w-6 h-6 fill-current" />
                         <span>NutritionLM</span>
@@ -190,16 +193,16 @@ export default function NutritionLM() {
 
                 <div className="p-4 flex-1 overflow-y-auto">
                     <div className="flex justify-between items-center mb-4">
-                        {/* Heading: Light gray text on Dark Slate */}
+                        {/* Heading */}
                         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Sources ({sources.length})</h2>
-                        {/* Plus button: White/Gray on hover */}
+                        {/* Plus button */}
                         <button className="text-gray-400 hover:text-white">
                             <Plus className="w-4 h-4" />
                         </button>
                     </div>
 
                     <div className="space-y-3">
-                        {/* Upload New Source Card (White/Gray accent) */}
+                        {/* Upload New Source Card */}
                         <div className="border border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}>
                             <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-2">
                                 <Plus className="w-4 h-4 text-white" />
@@ -208,15 +211,15 @@ export default function NutritionLM() {
                             <span className="text-xs text-gray-400">PDF, TXT, MD, Audio</span>
                         </div>
 
-                        {/* Source Cards (White background, Dark Slate text) */}
+                        {/* Source Cards */}
                         {sources.map((source) => (
                             <div key={source.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-shadow cursor-pointer" style={{ borderColor: COLOR_CONTENT_BG }}>
                                 <div className="flex items-start gap-3">
-                                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${source.color}`}>
+                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: source.color, color: source.textColor }}>
                                         <FileText className="w-4 h-4" />
                                     </div>
                                     <div className="flex-1 min-w-0">
-                                        {/* Title Text: Dark Slate/Charcoal */}
+                                        {/* Title Text */}
                                         <h3 className="text-sm font-medium truncate" style={{ color: COLOR_ACCENT_DARK }}>{source.title}</h3>
                                         <p className="text-xs text-gray-500 mt-0.5">{source.type} • Added today</p>
                                     </div>
@@ -229,12 +232,12 @@ export default function NutritionLM() {
                 {/* User Profile */}
                 <div className="p-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                     <div className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer">
-                        {/* Avatar: Light green background for contrast */}
+                        {/* Avatar */}
                         <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
                             CB
                         </div>
                         <div className="flex-1">
-                            {/* Profile Text: White on Dark Slate */}
+                            {/* Profile Text */}
                             <div className="text-sm font-medium text-white">Cool Beans</div>
                             <div className="text-xs text-gray-400">Pro Plan</div>
                         </div>
@@ -243,13 +246,12 @@ export default function NutritionLM() {
             </div>
 
             {/* CHAT AREA */}
-            {/* Chat Area Background: Light Grey/Off-white (#F8F8F8) */}
             <div className="flex-1 flex flex-col relative" style={{ backgroundColor: COLOR_CONTENT_BG }}>
                 
                 {/* Header */}
-                {/* Header Background: Light Grey/Off-white (with slight opacity/blur effect) */}
                 <header 
-                    className="h-16 flex items-center justify-between px-6 border-b border-gray-200 backdrop-blur-sm sticky top-0 z-10"
+                    className="h-16 flex items-center justify-between px-6 border-b backdrop-blur-sm sticky top-0 z-10"
+                    style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
                 >
                     {/* LEFT: Sidebar Toggle */}
                     <button 
@@ -273,14 +275,17 @@ export default function NutritionLM() {
                         
                         {telegramVerified ? (
                             /* VERIFIED BADGE */
-                            <span className="px-3 py-1 text-sm bg-green-100 text-green-700 rounded-full font-medium">
+                            <span className="px-3 py-1 text-sm text-white rounded-full font-medium" style={{ backgroundColor: COLOR_PRIMARY }}>
                                 Verified ✓
                             </span>
                         ) : (
                             /* CONNECT TELEGRAM BUTTON */
                             <button
                                 onClick={connectTelegram}
-                                className="px-3 py-1 text-sm bg-blue-600 text-white rounded-full hover:bg-blue-700 transition"
+                                className="px-3 py-1 text-sm text-white rounded-full transition"
+                                style={{ backgroundColor: COLOR_PRIMARY }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_PRIMARY}
                             >
                                 Connect Telegram
                             </button>
@@ -302,9 +307,7 @@ export default function NutritionLM() {
                                 {/* Avatar */}
                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 
                                     ${msg.role === 'ai' 
-                                        // AI Avatar: Forest Green (#4CAF50)
                                         ? 'text-white' 
-                                        // User Avatar: Dark Slate/Charcoal (#34495E)
                                         : 'bg-gray-200'}`}
                                     style={{ 
                                         backgroundColor: msg.role === 'ai' ? COLOR_PRIMARY : COLOR_ACCENT_DARK,
@@ -318,9 +321,7 @@ export default function NutritionLM() {
                                 <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                     <div className={`text-sm leading-relaxed whitespace-pre-wrap py-2 px-4 rounded-2xl
                                         ${msg.role === 'user' 
-                                            // User Bubble: Sage Green (#C8E6C9)
                                             ? `text-gray-900 rounded-tr-none` 
-                                            // AI Bubble: Transparent on Light Grey BG
                                             : 'bg-transparent text-gray-800 -ml-2'
                                         }`}
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
@@ -379,16 +380,18 @@ export default function NutritionLM() {
                                     <button 
                                         key={i}
                                         onClick={() => setInput(prompt)}
-                                        // Chips: White background, Primary text/border on hover
-                                        className="whitespace-nowrap px-4 py-2 bg-white border border-gray-200 rounded-full text-sm text-gray-600 transition-colors shadow-sm"
-                                        style={{ borderColor: 'rgba(0,0,0,0.1)' }}
+                                        className="whitespace-nowrap px-4 py-2 bg-white border rounded-full text-sm transition-colors shadow-sm"
+                                        style={{ 
+                                            borderColor: 'rgba(52, 73, 94, 0.1)',
+                                            color: COLOR_ACCENT_DARK
+                                        }}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.borderColor = COLOR_PRIMARY;
                                             e.currentTarget.style.color = COLOR_PRIMARY;
                                         }}
                                         onMouseLeave={(e) => {
-                                            e.currentTarget.style.borderColor = 'rgba(0,0,0,0.1)';
-                                            e.currentTarget.style.color = 'rgb(75, 85, 99)'; // text-gray-600 equivalent
+                                            e.currentTarget.style.borderColor = 'rgba(52, 73, 94, 0.1)';
+                                            e.currentTarget.style.color = COLOR_ACCENT_DARK;
                                         }}
                                     >
                                         {prompt}
@@ -398,10 +401,18 @@ export default function NutritionLM() {
                         )}
 
                         {/* Input Bar */}
-                        <div className="bg-white rounded-3xl shadow-lg border border-gray-200 overflow-hidden focus-within:ring-1 focus-within:ring-green-500/50 transition-shadow">
+                        <div 
+                            className="bg-white rounded-3xl shadow-lg border overflow-hidden transition-shadow" 
+                            style={{ 
+                                borderColor: isInputFocused ? `${COLOR_PRIMARY}80` : 'rgba(52, 73, 94, 0.1)',
+                                boxShadow: isInputFocused ? `0 0 0 1px ${COLOR_PRIMARY}40` : undefined
+                            }}
+                        >
                             <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
+                                onFocus={() => setIsInputFocused(true)}
+                                onBlur={() => setIsInputFocused(false)}
                                 onKeyDown={(e) => {
                                     if(e.key === 'Enter' && !e.shiftKey) {
                                         e.preventDefault();
@@ -423,11 +434,21 @@ export default function NutritionLM() {
                                             // Toggle: if already active, deactivate; otherwise activate and deactivate the other
                                             setActiveButton(activeButton === 'factCheck' ? null : 'factCheck');
                                         }}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                                            activeButton === 'factCheck'
-                                                ? 'text-white bg-blue-600 hover:bg-blue-700'
-                                                : 'text-blue-600 bg-blue-50 hover:bg-blue-100'
-                                        }`}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        style={{
+                                            backgroundColor: activeButton === 'factCheck' ? COLOR_FACT_CHECK : COLOR_FACT_CHECK_LIGHT,
+                                            color: activeButton === 'factCheck' ? 'white' : COLOR_ACCENT_DARK
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (activeButton !== 'factCheck') {
+                                                e.currentTarget.style.backgroundColor = '#80CBC4';
+                                            } else {
+                                                e.currentTarget.style.backgroundColor = '#00897B';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = activeButton === 'factCheck' ? COLOR_FACT_CHECK : COLOR_FACT_CHECK_LIGHT;
+                                        }}
                                     >
                                         <ShieldCheck className="w-4 h-4" />
                                         Fact Check
@@ -438,11 +459,21 @@ export default function NutritionLM() {
                                             // Toggle: if already active, deactivate; otherwise activate and deactivate the other
                                             setActiveButton(activeButton === 'compare' ? null : 'compare');
                                         }}
-                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors ${
-                                            activeButton === 'compare'
-                                                ? 'text-white bg-purple-600 hover:bg-purple-700'
-                                                : 'text-purple-600 bg-purple-50 hover:bg-purple-100'
-                                        }`}
+                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        style={{
+                                            backgroundColor: activeButton === 'compare' ? COLOR_COMPARE : COLOR_COMPARE_LIGHT,
+                                            color: activeButton === 'compare' ? 'white' : COLOR_ACCENT_DARK
+                                        }}
+                                        onMouseEnter={(e) => {
+                                            if (activeButton !== 'compare') {
+                                                e.currentTarget.style.backgroundColor = '#A5D6A7';
+                                            } else {
+                                                e.currentTarget.style.backgroundColor = '#43A047';
+                                            }
+                                        }}
+                                        onMouseLeave={(e) => {
+                                            e.currentTarget.style.backgroundColor = activeButton === 'compare' ? COLOR_COMPARE : COLOR_COMPARE_LIGHT;
+                                        }}
                                     >
                                         <Scale className="w-4 h-4" />
                                         Compare
@@ -459,7 +490,6 @@ export default function NutritionLM() {
                                         disabled={!input.trim()}
                                         className={`p-2 rounded-full transition-all duration-200 
                                             ${input.trim() 
-                                                // Send Button: Forest Green
                                                 ? 'shadow-md text-white' 
                                                 : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
                                         style={{ backgroundColor: input.trim() ? COLOR_PRIMARY : 'rgb(243, 244, 246)' }} 
