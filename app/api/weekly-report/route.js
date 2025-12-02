@@ -2,6 +2,58 @@ import { createClient } from '../../utils/supabase/server';
 import { getLastWeekFoodLogs, getLastWeekDateRange } from '../../../services/foodLog';
 import { getUserPreferenceServer } from '../../../services/userPreference';
 
+// Calculate average nutrition intake from food logs
+function calculateAverageNutrition(foodLogs) {
+  if (!foodLogs || foodLogs.length === 0) {
+    return {};
+  }
+
+  // Initialize accumulators for each nutrition type
+  const nutritionSums = {};
+  const nutritionCounts = {};
+
+  // Common nutrition types to track
+  const nutritionTypes = [
+    'protein',
+    'carbohydrates',
+    'fats',
+    'vitamins',
+    'minerals',
+    'fiber'
+  ];
+
+  // Initialize sums and counts
+  nutritionTypes.forEach(type => {
+    nutritionSums[type] = 0;
+    nutritionCounts[type] = 0;
+  });
+
+  // Iterate through food logs and accumulate nutrition values
+  foodLogs.forEach(log => {
+    if (log.nutrition && typeof log.nutrition === 'object') {
+      nutritionTypes.forEach(type => {
+        const value = log.nutrition[type];
+        if (value !== null && value !== undefined && !isNaN(value)) {
+          nutritionSums[type] += Number(value);
+          nutritionCounts[type]++;
+        }
+      });
+    }
+  });
+
+  // Calculate averages
+  const averages = {};
+  nutritionTypes.forEach(type => {
+    if (nutritionCounts[type] > 0) {
+      averages[type] = Number((nutritionSums[type] / nutritionCounts[type]).toFixed(2));
+    } else {
+      averages[type] = 0;
+    }
+  });
+
+  return averages;
+}
+
 // example response:
 // {
 //   "week": {
@@ -10,6 +62,14 @@ import { getUserPreferenceServer } from '../../../services/userPreference';
 //   },
 //   "foodLogs": [],
 //   "nutritionGoals": {},
+//   "last_week_nutrition_intake_avg": {
+//     "protein": 0,
+//     "carbohydrates": 0,
+//     "fats": 0,
+//     "vitamins": 0,
+//     "minerals": 0,
+//     "fiber": 0
+//   },
 //   "summary": {
 //     "totalLogs": 0,
 //     "daysWithLogs": 0
@@ -57,6 +117,9 @@ export async function GET() {
       ? userPreference[0].nutrition_goals 
       : null;
 
+    // Calculate average nutrition intake for last week
+    const lastWeekNutritionIntakeAvg = calculateAverageNutrition(foodLogs || []);
+
     // Return weekly report
     return Response.json({
       week: {
@@ -65,6 +128,7 @@ export async function GET() {
       },
       foodLogs: foodLogs || [],
       nutritionGoals: nutritionGoals,
+      last_week_nutrition_intake_avg: lastWeekNutritionIntakeAvg,
       summary: {
         totalLogs: foodLogs?.length || 0,
         daysWithLogs: foodLogs ? new Set(foodLogs.map(log => log.record_date)).size : 0
