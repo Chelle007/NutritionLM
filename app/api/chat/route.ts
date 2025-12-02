@@ -16,15 +16,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { message } = await req.json();
+    const { message, image } = await req.json();
     console.log("Received message:", message); // DEBUG LOG 2
+    console.log("Received image:", image ? "Yes" : "No"); // DEBUG LOG 2
 
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Try "gemini-pro" if "gemini-1.5-flash" fails, sometimes region/tier specific
+    // Use a model that supports vision (gemini-2.0-flash-exp supports images)
     const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash-exp" });
+    
+    // Prepare parts array for Gemini API
+    // If image is provided, include it first, then the text message
+    const parts = [];
+    
+    if (image && image.data && image.mimeType) {
+      parts.push({
+        inlineData: {
+          mimeType: image.mimeType,
+          data: image.data,
+        },
+      });
+    }
+    
+    // Add the text message (or a default prompt if no message but image exists)
+    const textMessage = message?.trim() || (image ? "What can you tell me about this image?" : "");
+    if (textMessage) {
+      parts.push({
+        text: textMessage,
+      });
+    }
+    
+    // If no parts, return error
+    if (parts.length === 0) {
+      return NextResponse.json(
+        { error: "No message or image provided." },
+        { status: 400 }
+      );
+    }
         
-    const result = await model.generateContent(message);
+    const result = await model.generateContent(parts);
     const responseText = result.response.text();
 
     return NextResponse.json({ reply: responseText || "" });
