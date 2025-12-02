@@ -65,6 +65,18 @@ export default function NutritionLM() {
 
     const [telegramVerified, setTelegramVerified] = useState(false);
     const [googleFitVerified, setGoogleFitVerified] = useState(false);
+    const [isMobile, setIsMobile] = useState(false);
+
+    // Handle responsive detection
+    useEffect(() => {
+        const checkMobile = () => {
+            setIsMobile(window.innerWidth < 768);
+        };
+        
+        checkMobile();
+        window.addEventListener('resize', checkMobile);
+        return () => window.removeEventListener('resize', checkMobile);
+    }, []);
 
     useEffect(() => {
         async function loadUser() {
@@ -556,18 +568,56 @@ export default function NutritionLM() {
             
             {/* LEFT SIDEBAR */}
             <div 
-                className={`${isSidebarOpen ? 'w-80 opacity-100' : 'w-0 opacity-0'} 
-                transition-all duration-300 ease-in-out border-r border-gray-200 flex flex-col shrink-0`}
-                style={{ backgroundColor: COLOR_ACCENT_DARK }}
+                className={`${isMobile ? 'w-80' : (isSidebarOpen ? 'w-80' : 'w-16')}
+                transition-all duration-300 ease-in-out border-r border-gray-200 flex flex-col shrink-0
+                fixed md:relative inset-y-0 left-0 z-40 md:z-auto overflow-hidden`}
+                style={{ 
+                    backgroundColor: COLOR_ACCENT_DARK,
+                    transform: isMobile 
+                        ? (isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)')
+                        : 'translateX(0)',
+                    pointerEvents: isMobile && !isSidebarOpen ? 'none' : 'auto'
+                }}
             >
-                <div className="p-6 border-b border-gray-100 flex justify-between items-center" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                    <div className="flex items-center gap-2 font-bold text-xl text-white">
-                        <Sparkles className="w-6 h-6 fill-current" />
-                        <span>NutritionLM</span>
-                    </div>
+                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center px-4 md:px-6 ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
+                    {(!isMobile && !isSidebarOpen) ? null : (
+                        <div className="flex items-center gap-2 font-bold text-xl text-white whitespace-nowrap">
+                            <Sparkles className="w-6 h-6 fill-current shrink-0" />
+                            <span className={isMobile ? '' : (isSidebarOpen ? '' : 'hidden')}>NutritionLM</span>
+                        </div>
+                    )}
+                    {isMobile ? (
+                        <button 
+                            onClick={() => setIsSidebarOpen(false)}
+                            className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+                            aria-label="Close sidebar"
+                        >
+                            <X className="w-5 h-5" />
+                        </button>
+                    ) : (
+                        <>
+                            {isSidebarOpen ? (
+                                <button 
+                                    onClick={() => setIsSidebarOpen(false)}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+                                    aria-label="Close sidebar"
+                                >
+                                    <X className="w-5 h-5" />
+                                </button>
+                            ) : (
+                                <button
+                                    onClick={() => setIsSidebarOpen(true)}
+                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+                                    aria-label="Open sidebar"
+                                >
+                                    <Menu className="w-5 h-5" />
+                                </button>
+                            )}
+                        </>
+                    )}
                 </div>
 
-                <div className="p-4 flex-1 overflow-y-auto">
+                <div className={`p-4 flex-1 overflow-y-auto ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`}>
                     <div className="flex justify-between items-center mb-4">
                         <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Sources ({sources.length})</h2>
                         <button className="text-gray-400 hover:text-white">
@@ -600,12 +650,12 @@ export default function NutritionLM() {
                     </div>
                 </div>
                 
-                <div className="p-4 border-t" style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+                <div className={`p-4 border-t ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`} style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
                     <div className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
+                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
                             CB
                         </div>
-                        <div className="flex-1">
+                        <div className={`flex-1 ${isMobile ? '' : (isSidebarOpen ? '' : 'hidden')}`}>
                             <div className="text-sm font-medium text-white">Cool Beans</div>
                             <div className="text-xs text-gray-400">Pro Plan</div>
                         </div>
@@ -613,49 +663,59 @@ export default function NutritionLM() {
                 </div>
             </div>
 
+            {/* Overlay for mobile sidebar */}
+            {isSidebarOpen && (
+                <div 
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
+                    onClick={() => setIsSidebarOpen(false)}
+                />
+            )}
+
             {/* CHAT AREA */}
-            <div className="flex-1 flex flex-col relative" style={{ backgroundColor: COLOR_CONTENT_BG }}>
+            <div className="flex-1 flex flex-col relative w-full" style={{ backgroundColor: COLOR_CONTENT_BG }}>
                 
                 {/* Header */}
                 <header 
-                    className="h-16 flex items-center justify-between px-6 border-b backdrop-blur-sm sticky top-0 z-10"
+                    className="h-16 flex items-center justify-between px-3 md:px-6 border-b backdrop-blur-sm sticky top-0 z-20 bg-white/80"
                     style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
                 >
-                    <button 
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-                    >
-                        {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                    </button>
+                    {isMobile && (
+                        <button 
+                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
+                        >
+                            {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                        </button>
+                    )}
 
-                    <div className="text-sm font-medium text-gray-500">
+                    <div className="text-xs md:text-sm font-medium text-gray-500 hidden sm:block">
                         {sources.length} sources selected
                     </div>
 
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-1.5 md:gap-3">
 
                         {telegramVerified ? (
                             <span 
-                                className="px-3 py-1 text-sm text-white rounded-full font-medium cursor-default opacity-90"
+                                className="px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full font-medium cursor-default opacity-90"
                                 style={{ backgroundColor: "#4CAF50" }}
                             >
-                                Telegram Connected ✓
+                                <span className="hidden sm:inline">Telegram Connected </span>✓
                             </span>
                         ) : (
                             <button
                                 onClick={openOtpBox}
-                                className="px-3 py-1 text-sm text-white rounded-full transition"
+                                className="px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full transition"
                                 style={{ backgroundColor: '#0088CC' }}
                                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0077B5'}
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0088CC'}
                             >
-                                Manage Telegram
+                                <span className="hidden sm:inline">Manage </span>Telegram
                             </button>
                         )}
 
                         {googleFitVerified ? (
                             <div 
-                                className="px-3 py-1 text-sm rounded-full font-medium flex items-center gap-1.5 border-2"
+                                className="px-2 md:px-3 py-1 text-xs md:text-sm rounded-full font-medium flex items-center gap-1 border-2"
                                 style={{ 
                                     backgroundColor: '#E8F5E9',
                                     color: '#2E7D32',
@@ -663,18 +723,18 @@ export default function NutritionLM() {
                                     cursor: 'default'
                                 }}
                             >
-                                <CheckCircle className="w-4 h-4" style={{ color: '#4CAF50' }} />
-                                Google Fit Connected
+                                <CheckCircle className="w-3 h-3 md:w-4 md:h-4" style={{ color: '#4CAF50' }} />
+                                <span className="hidden sm:inline">Google Fit </span>Connected
                             </div>
                         ) : (
                             <button
                                 onClick={connectGoogleFit}
-                                className="px-3 py-1 text-sm text-white rounded-full transition"
+                                className="px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full transition"
                                 style={{ backgroundColor: COLOR_FACT_CHECK }}
                                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E8E7E'}
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_FACT_CHECK}
                             >
-                                Connect Google Fit
+                                <span className="hidden sm:inline">Connect </span>Fit
                             </button>
                         )}
 
@@ -692,8 +752,8 @@ export default function NutritionLM() {
 
                 {/* OTP POPUP (positioned under Manage Telegram) */}
                 {showOtpBox && (
-                    <div className="absolute top-16 right-[180px] z-50 animate-fadeIn">
-                        <div className="bg-white shadow-xl rounded-2xl p-5 w-80 border border-gray-200">
+                    <div className="fixed md:absolute top-16 right-2 md:right-[180px] z-50 animate-fadeIn max-w-[calc(100vw-1rem)] md:w-80">
+                        <div className="bg-white shadow-xl rounded-2xl p-4 md:p-5 w-full md:w-80 border border-gray-200">
                             
                             {/* Header */}
                             <div className="flex justify-between items-center mb-4">
@@ -782,21 +842,21 @@ export default function NutritionLM() {
 
 
                 {/* Chat */}
-                <div className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
-                    <div className="max-w-3xl mx-auto space-y-8">
+                <div className="flex-1 overflow-y-auto p-3 md:p-4 lg:p-8 scrollbar-hide">
+                    <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
                         {messages.map((msg) => (
-                            <div key={msg.id} className={`flex gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`w-8 h-8 rounded-full flex items-center justify-center shrink-0 
+                            <div key={msg.id} className={`flex gap-2 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
+                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 
                                     ${msg.role === 'ai' ? 'text-white' : 'bg-gray-200'}`}
                                     style={{ 
                                         backgroundColor: msg.role === 'ai' ? COLOR_PRIMARY : COLOR_ACCENT_DARK,
                                         color: msg.role === 'user' ? 'white' : 'white'
                                     }}
                                 >
-                                    {msg.role === 'ai' ? <Sparkles className="w-4 h-4" /> : <span className="text-xs font-bold">You</span>}
+                                    {msg.role === 'ai' ? <Sparkles className="w-3 h-3 md:w-4 md:h-4" /> : <span className="text-[10px] md:text-xs font-bold">You</span>}
                                 </div>
 
-                                <div className={`flex flex-col max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
+                                <div className={`flex flex-col max-w-[85%] md:max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
                                     <div className={`text-sm leading-relaxed py-2 px-4 rounded-2xl
                                         ${msg.role === 'user' ? `text-gray-900 rounded-tr-none` : 'bg-transparent text-gray-800 -ml-2'}`}
                                         style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
@@ -807,7 +867,7 @@ export default function NutritionLM() {
                                                 <img 
                                                     src={msg.image || msg.nutritionImage} 
                                                     alt={msg.role === 'user' ? "User Upload" : "Food Image"} 
-                                                    className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm max-h-64 object-cover"
+                                                    className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm max-h-48 md:max-h-64 object-cover"
                                                 />
                                                 {/* Scanning animation overlay for nutrition images */}
                                                 {msg.nutritionImage && msg.nutritionData && msg.showScanAnimation && (
@@ -824,8 +884,8 @@ export default function NutritionLM() {
                                         )}
 
                                         {msg.comparisonData ? (
-                                            <div className="flex flex-col gap-3 w-full min-w-[300px] md:min-w-[400px]">
-                                                <div className="grid grid-cols-2 gap-3">
+                                            <div className="flex flex-col gap-3 w-full min-w-0">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {/* Left Column */}
                                                     <div className="bg-white/50 rounded-xl p-3 border border-green-100">
                                                         <h4 className="font-bold text-green-700 mb-2 border-b border-green-100 pb-1">
@@ -907,7 +967,7 @@ export default function NutritionLM() {
                                         {/* Display Nutrition Data if available */}
                                         {msg.nutritionData && typeof msg.nutritionData === 'object' && (
                                             <div className="mt-4 pt-4 border-t border-gray-200">
-                                                <div className="grid grid-cols-2 gap-3">
+                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                                     {Object.entries(msg.nutritionData).map(([key, value]) => (
                                                         <div key={key} className="bg-white/50 p-3 rounded-xl border border-gray-100">
                                                             <div className="flex justify-between items-center mb-2">
@@ -942,11 +1002,11 @@ export default function NutritionLM() {
                                 <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: COLOR_PRIMARY }}>
                                     <Sparkles className="w-4 h-4" />
                                 </div>
-                                <div className="flex flex-col max-w-[80%] items-start">
+                                <div className="flex flex-col max-w-[85%] md:max-w-[80%] items-start">
                                     {isScanning ? (
-                                        <div className="relative bg-white rounded-2xl p-6 border border-gray-200 shadow-sm min-w-[450px] max-w-[500px]">
-                                            <div className="flex items-center gap-4 mb-4">
-                                                <div className="relative w-24 h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
+                                        <div className="relative bg-white rounded-2xl p-4 md:p-6 border border-gray-200 shadow-sm w-full max-w-[500px]">
+                                            <div className="flex items-center gap-3 md:gap-4 mb-4">
+                                                <div className="relative w-16 h-16 md:w-24 md:h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
                                                     {scanningAttachment?.preview ? (
                                                         <>
                                                             <img 
@@ -1032,16 +1092,16 @@ export default function NutritionLM() {
                 </div>
 
                 {/* Input Area */}
-                <div className="p-4 md:p-6 pb-8">
+                <div className="p-3 md:p-4 lg:p-6 pb-6 md:pb-8">
                     <div className="max-w-3xl mx-auto">
                         
                         {messages.length < 3 && !attachment && (
-                            <div className="flex gap-2 mb-4 overflow-x-auto pb-2 scrollbar-hide">
+                            <div className="flex gap-2 mb-3 md:mb-4 overflow-x-auto pb-2 scrollbar-hide">
                                 {suggestedPrompts.map((prompt, i) => (
                                     <button 
                                         key={i}
                                         onClick={() => setInput(prompt)}
-                                        className="whitespace-nowrap px-4 py-2 bg-white border rounded-full text-sm transition-colors shadow-sm"
+                                        className="whitespace-nowrap px-3 md:px-4 py-1.5 md:py-2 bg-white border rounded-full text-xs md:text-sm transition-colors shadow-sm"
                                         style={{ borderColor: 'rgba(52, 73, 94, 0.1)', color: COLOR_ACCENT_DARK }}
                                         onMouseEnter={(e) => {
                                             e.currentTarget.style.borderColor = COLOR_PRIMARY;
@@ -1105,50 +1165,50 @@ export default function NutritionLM() {
                                     }
                                 }}
                                 placeholder="Ask NutritionLM or attach a food label..."
-                                className="w-full bg-transparent border-none focus:ring-0 outline-none p-4 min-h-[60px] max-h-40 resize-none text-gray-700 placeholder:text-gray-400"
+                                className="w-full bg-transparent border-none focus:ring-0 outline-none p-3 md:p-4 min-h-[50px] md:min-h-[60px] max-h-40 resize-none text-sm md:text-base text-gray-700 placeholder:text-gray-400"
                                 rows={1}
                             />
                             
-                            <div className="flex justify-between items-center px-3 pb-3 pt-1">
-                                <div className="flex items-center gap-2">
+                            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-0 px-3 pb-3 pt-1">
+                                <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
                                     <button 
                                         onClick={() => setActiveButton(activeButton === 'factCheck' ? null : 'factCheck')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-colors"
                                         style={{
                                             backgroundColor: activeButton === 'factCheck' ? COLOR_FACT_CHECK : COLOR_FACT_CHECK_LIGHT,
                                             color: activeButton === 'factCheck' ? 'white' : COLOR_ACCENT_DARK
                                         }}
                                     >
-                                        <ShieldCheck className="w-4 h-4" />
-                                        Fact Check
+                                        <ShieldCheck className="w-3 h-3 md:w-4 md:h-4" />
+                                        <span className="hidden sm:inline">Fact </span>Check
                                     </button>
 
                                     <button 
                                         onClick={() => setActiveButton(activeButton === 'compare' ? null : 'compare')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-colors"
                                         style={{
                                             backgroundColor: activeButton === 'compare' ? COLOR_COMPARE : COLOR_COMPARE_LIGHT,
                                             color: activeButton === 'compare' ? 'white' : COLOR_ACCENT_DARK
                                         }}
                                     >
-                                        <Scale className="w-4 h-4" />
+                                        <Scale className="w-3 h-3 md:w-4 md:h-4" />
                                         Compare
                                     </button>
 
                                     <button 
                                         onClick={() => setActiveButton(activeButton === 'nutrition' ? null : 'nutrition')}
-                                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors"
+                                        className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-colors"
                                         style={{
                                             backgroundColor: activeButton === 'nutrition' ? COLOR_NUTRITION : COLOR_NUTRITION_LIGHT,
                                             color: activeButton === 'nutrition' ? 'white' : COLOR_ACCENT_DARK
                                         }}
                                     >
-                                        <UtensilsCrossed className="w-4 h-4" />
-                                        Nutrition Check
+                                        <UtensilsCrossed className="w-3 h-3 md:w-4 md:h-4" />
+                                        <span className="hidden sm:inline">Nutrition </span>Check
                                     </button>
                                 </div>
 
-                                <div className="flex items-center gap-2">
+                                <div className="flex items-center gap-1.5 md:gap-2 justify-end">
                                     {/* Trigger File Input */}
                                     <button 
                                         onClick={() => fileInputRef.current?.click()}
@@ -1173,7 +1233,7 @@ export default function NutritionLM() {
                             </div>
                         </div>
 
-                        <p className="text-center text-xs text-gray-400 mt-3">
+                        <p className="text-center text-[10px] md:text-xs text-gray-400 mt-2 md:mt-3 px-2">
                             NutritionLM may produce inaccurate information about health. Verify with a professional.
                         </p>
                     </div>

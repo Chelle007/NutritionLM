@@ -72,3 +72,11 @@ body {
 .animate-scanPulse {
   animation: scanPulse 2s ease-in-out infinite;
 }
+
+/* Sidebar desktop fix - always visible on desktop */
+@media (min-width: 768px) {
+  .sidebar-desktop-fix {
+    transform: translateX(0) !important;
+    pointer-events: auto !important;
+  }
+}
