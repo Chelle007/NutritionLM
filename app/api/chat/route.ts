@@ -1,88 +1,82 @@
-// app/api/chat/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) throw new Error("Missing API Key");
+
+    const { message, image, factCheck, compare } = await req.json();
     
-    // Verify env var is loaded (masking the actual key)
-    console.log("API Key Status:", apiKey ? `Loaded (${apiKey.substring(0, 4)}...)` : "Missing");
-
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: "GEMINI_API_KEY is not set on the server." },
-        { status: 500 }
-      );
-    }
-
-    const { message, image, factCheck } = await req.json();
-    
-    // Quick payload check
-    console.log("Request params:", { 
-        hasMessage: !!message, 
-        hasImage: !!image, 
-        isResearchMode: !!factCheck 
-    });
-
     const genAI = new GoogleGenerativeAI(apiKey);
     
-    // Default model config
-    const modelConfig: any = { model: "gemini-2.0-flash-exp" };
-    
-    // Add search tool if research mode is active
-    if (factCheck) {
-      modelConfig.tools = [{ googleSearch: {} }];
-    }
-    
-    const model = genAI.getGenerativeModel(modelConfig);
-    
-    // Build prompt parts. Note: Images must precede text input.
-    const parts = [];
-    
-    if (image?.data && image?.mimeType) {
-      parts.push({
-        inlineData: {
-          mimeType: image.mimeType,
-          data: image.data,
-        },
-      });
-    }
-    
-    // Handle text input or fallback for image-only requests
-    let textMessage = message?.trim() || (image ? "What can you tell me about this image?" : "");
-    
-    // Inject strict sourcing requirements for research mode
-    if (factCheck && textMessage) {
-      textMessage = `Please research the following topic using Google Search and provide a comprehensive summary with citations: ${textMessage}
+    // 1. Base Configuration
+    let modelConfig: any = { 
+        model: "gemini-2.0-flash-exp",
+    };
 
-Please:
-1. Search for current and reliable information on this topic
-2. Summarize the key findings
-3. Cite your sources with proper attribution
-4. Format citations as clickable links when possible`;
+    let systemInstruction = "";
+
+    // 2a. Handle "Compare" Mode
+    if (compare) {
+      modelConfig.generationConfig = { responseMimeType: "application/json" };
+      modelConfig.tools = [{ googleSearch: {} }]; 
+      
+      systemInstruction = `
+          You are a helpful nutrition assistant. 
+          The user wants a factual comparison on the topic. 
+          
+          1. FIRST, use Google Search to find the latest scientific consensus.
+          2. THEN, analyze the topic from two distinct perspectives.
+          3. Use inline citations like [1], [2] in your bullet points and summary to verify your claims.
+          4. FINALLY, return the result in this EXACT JSON format:
+          {
+              "sideA": { "title": "Title", "points": ["point 1 [1]", "point 2 [2]"] },
+              "sideB": { "title": "Title", "points": ["point 3 [1]", "point 4 [3]"] },
+              "summary": "A balanced 2-sentence conclusion [2].",
+              "sources": [
+                  { "title": "Source Title", "uri": "URL" }
+              ]
+          }
+          CRITICAL: Ensure the citation numbers [1] in the text correspond exactly to the index (1-based) of the source in the "sources" list.
+      `;
     }
-    
-    if (textMessage) {
-      parts.push({ text: textMessage });
+
+    // 2b. Handle "Fact Check" Mode
+    else if (factCheck) {
+        modelConfig.tools = [{ googleSearch: {} }];
+
+        systemInstruction = "You are a helpful nutrition assistant. The user wants a factual fact check on the topic."
     }
-    
-    if (parts.length === 0) {
-      return NextResponse.json(
-        { error: "No message or image provided." },
-        { status: 400 }
-      );
+
+    const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
+
+    // 3. Build Prompt
+    const parts = [];
+    if (image?.data) {
+        parts.push({ inlineData: { mimeType: image.mimeType, data: image.data }});
     }
-        
+
+    let textMessage = message || (image ? "Analyze this image" : "");
+
+    if (compare) {
+        textMessage = `Search the web and compare perspectives on: "${textMessage}"`;
+    } 
+    else if (factCheck) {
+        textMessage = `Research and summarize: ${textMessage}`;
+    }
+
+    parts.push({ text: textMessage });
+
     const result = await model.generateContent(parts);
     const response = result.response;
     const responseText = response.text();
-    
-    // Parse grounding metadata for sources if available
+
+    // 4. Extract Grounding Metadata (Citations)
+    // This works for both Compare and Fact Check modes automatically
     let citations: any[] = [];
-    if (factCheck && response.candidates?.[0]?.groundingMetadata) {
+    if (response.candidates?.[0]?.groundingMetadata) {
       const { groundingChunks } = response.candidates[0].groundingMetadata;
-      
       citations = (groundingChunks || [])
         .map((chunk: any) => {
           if (chunk.web?.uri) {
@@ -98,17 +92,13 @@ Please:
     }
 
     return NextResponse.json({ 
-      reply: responseText || "",
-      citations: citations.length > 0 ? citations : undefined
+        reply: responseText, 
+        isComparison: compare,
+        citations: citations 
     });
 
   } catch (error: any) {
-    // Log full error stack for debugging
-    console.error("Gemini API Error:", JSON.stringify(error, null, 2));
-    
-    return NextResponse.json(
-      { error: error.message || "Failed to generate response." },
-      { status: 500 }
-    );
+    console.error("API Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
