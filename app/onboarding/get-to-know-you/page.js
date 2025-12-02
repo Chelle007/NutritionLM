@@ -18,13 +18,13 @@ import {
     Tag, 
     Activity 
 } from "lucide-react";
-import { insertUserPreference } from "../../../services/userPreference"; 
-
-//Defining the color palette for this page
-const COLOR_PRIMARY = "#4CAF50";      //Forest Green
-const COLOR_SECONDARY = "#C8E6C9";    //Sage Green 
-const COLOR_PRIMARY_HOVER = "#388E3C"; //Darker Green for hover feedback
-const COLOR_ACCENT_DARK = "#34495E";  //Dark Slate/Charcoal
+import { insertUserPreference } from "../../../services/userPreference";
+import {
+    COLOR_PRIMARY,
+    COLOR_SECONDARY_LIGHT as COLOR_SECONDARY,
+    COLOR_PRIMARY_HOVER,
+    COLOR_ACCENT_DARK
+} from '../../constants/colors';
 
 //Data structure for the questions and options
 const goalOptions = [

@@ -8,13 +8,13 @@ import {
     ShieldCheck,
     BellRing,
 } from "lucide-react";
-
-//Color Paletter (As per provided by Rey)
-const COLOR_PRIMARY = "#4CAF50";      // Forest Green 
-const COLOR_SECONDARY_LIGHT = "#C8E6C9";    // Sage Green 
-const COLOR_PRIMARY_HOVER = "#388E3C"; // Darker Green
-const COLOR_ACCENT_DARK = "#34495E";  // Dark Slate/Charcoal
-const COLOR_CONTENT_BG = "#F8F8F8";  // Light Grey/Off-white 
+import {
+    COLOR_PRIMARY,
+    COLOR_SECONDARY_LIGHT,
+    COLOR_PRIMARY_HOVER,
+    COLOR_ACCENT_DARK,
+    COLOR_CONTENT_BG
+} from '../../constants/colors'; 
 
 // Custom color variables for this page
 const COLOR_TELEGRAM_BLUE = "#0088CC"; // Telegram's color
