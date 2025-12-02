@@ -17,6 +17,43 @@ export async function GET(request: Request) {
     const supabase = await createClient()
     const { error } = await supabase.auth.exchangeCodeForSession(code)
     if (!error) {
+      // After successful authentication, ensure user exists in database
+      const { data: { user } } = await supabase.auth.getUser()
+      if (user) {
+        // Check if user already exists in users table
+        const { data: existingUser, error: checkError } = await supabase
+          .from('users')
+          .select('id')
+          .eq('id', user.id)
+          .maybeSingle()
+
+        // If user doesn't exist, create them
+        if (!existingUser && !checkError) {
+          const userData = {
+            id: user.id,
+            full_name: user.user_metadata?.full_name || 
+                      user.user_metadata?.name || 
+                      user.user_metadata?.display_name || 
+                      null,
+            avatar_url: user.user_metadata?.avatar_url || 
+                       user.user_metadata?.picture || 
+                       null,
+            telegram_chat_id: null,
+          }
+
+          const { error: insertError } = await supabase
+            .from('users')
+            .insert([userData])
+
+          if (insertError) {
+            console.error('Error creating user record:', insertError)
+            // Continue anyway - user is authenticated, just missing profile
+          } else {
+            console.log('Created user record:', user.id)
+          }
+        }
+      }
+
       const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
       const isLocalEnv = process.env.NODE_ENV === 'development'
       if (isLocalEnv) {

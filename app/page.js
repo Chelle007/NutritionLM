@@ -12,7 +12,8 @@ import {
     X,
     ShieldCheck,
     Scale,
-    Image as ImageIcon
+    Image as ImageIcon,
+    CheckCircle
 } from 'lucide-react';
 import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
@@ -28,6 +29,14 @@ const COLOR_COMPARE = "#66BB6A";
 const COLOR_COMPARE_LIGHT = "#C8E6C9";  
 
 export default function NutritionLM() {
+    const [otp, setOtp] = useState(null);
+    const [otpVisible, setOtpVisible] = useState(false);
+    const [showOtpBox, setShowOtpBox] = useState(false);
+    const [isGeneratingOtp, setIsGeneratingOtp] = useState(false);
+    const [copied, setCopied] = useState(false);
+    const [isRegenerating, setIsRegenerating] = useState(false);
+
+
     const [messages, setMessages] = useState([
         { 
             id: 1, 
@@ -68,9 +77,34 @@ export default function NutritionLM() {
 
             setTelegramVerified(data?.telegram_verified === true);
             setGoogleFitVerified(data?.google_fit_verified === true);
+
+            setOtp(data?.telegram_otp || null);
         }
         loadUser();
     }, []);
+
+    async function openOtpBox() {
+        setShowOtpBox(true);
+
+        const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+        );
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data } = await supabase
+            .from("users")
+            .select("telegram_otp")
+            .eq("id", user.id)
+            .single();
+
+        if (data?.telegram_otp) {
+            setOtp(data.telegram_otp);
+            setOtpVisible(false);
+        }
+    }
 
     // Handle OAuth callback
     useEffect(() => {
@@ -125,25 +159,37 @@ export default function NutritionLM() {
             process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
         );
 
-        const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const { data: { user } } = await supabase.auth.getUser();
-
         if (!user) {
             alert("Please log in first.");
             return;
         }
 
+        setIsGeneratingOtp(true);
+
+        const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
+
         const { error } = await supabase
             .from("users")
             .update({
-            telegram_otp: otp,
-            telegram_verified: false,
+                telegram_otp: otpCode,
+                telegram_verified: false,
             })
             .eq("id", user.id);
 
-        if (error) console.log(error);
-        alert(`Your OTP is ${otp}. Please send this code to the Telegram bot.`);
+        setIsGeneratingOtp(false);
+
+        if (error) {
+            console.log(error);
+            alert("Failed to generate OTP.");
+            return;
+        }
+
+        setOtp(otpCode);
+        setShowOtpBox(true);
+        setOtpVisible(false);
     }
+
 
     async function connectGoogleFit() {
         const supabase = createBrowserClient(
@@ -426,28 +472,39 @@ export default function NutritionLM() {
                     </div>
 
                     <div className="flex items-center gap-3">
+
                         {telegramVerified ? (
-                            <span className="px-3 py-1 text-sm text-white rounded-full font-medium" style={{ backgroundColor: '#0088CC' }}>
-                                Telegram ✓
+                            <span 
+                                className="px-3 py-1 text-sm text-white rounded-full font-medium cursor-default opacity-90"
+                                style={{ backgroundColor: "#4CAF50" }}
+                            >
+                                Telegram Connected ✓
                             </span>
                         ) : (
                             <button
-                                onClick={connectTelegram}
+                                onClick={openOtpBox}
                                 className="px-3 py-1 text-sm text-white rounded-full transition"
                                 style={{ backgroundColor: '#0088CC' }}
                                 onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0077B5'}
                                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0088CC'}
                             >
-                                Connect Telegram
+                                Manage Telegram
                             </button>
                         )}
+
                         {googleFitVerified ? (
-                            <span 
-                                className="px-3 py-1 text-sm text-white rounded-full font-medium cursor-not-allowed opacity-90"
-                                style={{ backgroundColor: COLOR_FACT_CHECK }}
+                            <div 
+                                className="px-3 py-1 text-sm rounded-full font-medium flex items-center gap-1.5 border-2"
+                                style={{ 
+                                    backgroundColor: '#E8F5E9',
+                                    color: '#2E7D32',
+                                    borderColor: '#4CAF50',
+                                    cursor: 'default'
+                                }}
                             >
+                                <CheckCircle className="w-4 h-4" style={{ color: '#4CAF50' }} />
                                 Google Fit Connected
-                            </span>
+                            </div>
                         ) : (
                             <button
                                 onClick={connectGoogleFit}
@@ -459,11 +516,105 @@ export default function NutritionLM() {
                                 Connect Google Fit
                             </button>
                         )}
+
                         <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
                             <MoreVertical className="w-5 h-5" />
                         </button>
+
                     </div>
+
                 </header>
+
+                {/* OTP POPUP (positioned under Manage Telegram) */}
+                {showOtpBox && (
+                    <div className="absolute top-16 right-[180px] z-50 animate-fadeIn">
+                        <div className="bg-white shadow-xl rounded-2xl p-5 w-80 border border-gray-200">
+                            
+                            {/* Header */}
+                            <div className="flex justify-between items-center mb-4">
+                                <h3 className="text-sm font-bold text-gray-800">Telegram Verification</h3>
+                                <button 
+                                    onClick={() => setShowOtpBox(false)}
+                                    className="p-1 hover:bg-gray-100 rounded-full transition"
+                                >
+                                    <X className="w-4 h-4 text-gray-500" />
+                                </button>
+                            </div>
+
+                            {/* OTP BOX */}
+                            <div className="space-y-4">
+                                
+                                {/* OTP Display */}
+                                <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
+                                    <span className="font-mono tracking-widest text-xl">
+                                        {otp !== null ? (otpVisible ? otp : "••••••") : "No OTP Yet"}
+                                    </span>
+
+                                    <button
+                                        onClick={() => setOtpVisible(!otpVisible)}
+                                        className="text-gray-600 hover:text-gray-800 transition"
+                                    >
+                                        {otpVisible ? "🙈" : "👁️"}
+                                    </button>
+                                </div>
+
+                                {/* COPY BUTTON */}
+                                <button
+                                    onClick={async () => {
+                                        try {
+                                            await navigator.clipboard.writeText(otp);
+                                            setCopied(true);
+                                            setTimeout(() => setCopied(false), 1500); // 1.5초 후 사라짐
+                                        } catch (err) {
+                                            console.error("Copy failed:", err);
+                                        }
+                                    }}
+                                    className="w-full py-2 rounded-lg border text-sm font-medium 
+                                            border-gray-300 text-gray-700 hover:bg-gray-50 transition"
+                                >
+                                    {copied ? "Copied!" : "📋 Copy OTP"}
+                                </button>
+
+                                {/* Regenerate OTP */}
+                                <button
+                                    onClick={async () => {
+                                        setIsRegenerating(true);
+                                        await connectTelegram();  // 기존 함수 그대로 사용
+                                        
+                                        setTimeout(() => {
+                                            setIsRegenerating(false);
+                                            alert("A new OTP has been generated!");
+                                        }, 700);
+                                    }}
+                                    className="w-full py-2 rounded-lg border text-sm font-medium 
+                                            border-gray-300 text-gray-700 hover:bg-gray-50 transition flex items-center justify-center"
+                                >
+                                    {isRegenerating ? (
+                                        <span className="flex items-center gap-2">
+                                            <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
+                                            Generating...
+                                        </span>
+                                    ) : (
+                                        "Regenerate OTP"
+                                    )}
+                                </button>
+
+                                {/* Open Bot */}
+                                <a
+                                    href="https://t.me/nutritionLM_Bot"
+                                    target="_blank"
+                                    className="block text-center bg-[#0088CC] text-white py-2 rounded-lg 
+                                            font-semibold hover:bg-[#0077B5] transition"
+                                >
+                                    Open Telegram Bot
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+
+
 
                 {/* Chat */}
                 <div className="flex-1 overflow-y-auto p-4 md:p-8 scrollbar-hide">
