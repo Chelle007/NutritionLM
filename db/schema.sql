@@ -27,7 +27,7 @@ create table user_preferences (
   user_id uuid references users(id) on delete cascade,
 
   -- TODO: replace these with real quiz fields
-  birthdate date,
+  birth_date date,
   weight_kg NUMERIC(5,2), -- up to 999.99
   height_cm NUMERIC(5,2),
   goal text,
@@ -45,10 +45,12 @@ create table user_preferences (
 create table food_logs (
   id bigint generated always as identity primary key,
   user_id uuid references users(id) on delete cascade,
+  food_name text,
   image_url text,
   record_date date not null default current_date,
   record_time time not null default current_time,
   food_type text, -- snack, breakfast, lunch, dinner
+  food_description text, -- for manual input
 
   ingredients jsonb, -- structured data: [{"name": "egg", "grams": 50}]
   nutrition jsonb,   -- structured data: {"calories": 150, "protein": 12}
