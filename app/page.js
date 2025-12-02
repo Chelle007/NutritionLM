@@ -1,38 +1,20 @@
 "use client";
 
 import React, { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { 
-    Send, 
-    Paperclip, 
-    Sparkles, 
-    Menu, 
-    Plus, 
-    FileText, 
-    BarChart3, 
-    X,
-    ShieldCheck,
-    Scale,
-    CheckCircle,
-    UtensilsCrossed
-} from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 import { createBrowserClient } from "@supabase/ssr";
-import {
-    COLOR_PRIMARY,
-    COLOR_SECONDARY_LIGHT,
-    COLOR_ACCENT_DARK,
+import { 
     COLOR_CONTENT_BG,
-    COLOR_FACT_CHECK,
-    COLOR_FACT_CHECK_LIGHT,
-    COLOR_COMPARE,
-    COLOR_COMPARE_LIGHT,
-    COLOR_NUTRITION,
-    COLOR_NUTRITION_LIGHT
+    COLOR_SECONDARY_LIGHT,
+    COLOR_ACCENT_DARK
 } from './constants/colors';
+import Sidebar from './components/Sidebar';
+import Header from './components/Header';
+import OtpPopup from './components/OtpPopup';
+import ChatMessage from './components/ChatMessage';
+import ThinkingIndicator from './components/ThinkingIndicator';
+import InputArea from './components/InputArea';
 
 export default function NutritionLM() {
-    const router = useRouter();
     const [otp, setOtp] = useState(null);
     const [otpVisible, setOtpVisible] = useState(false);
     const [showOtpBox, setShowOtpBox] = useState(false);
@@ -208,6 +190,16 @@ export default function NutritionLM() {
         setShowOtpBox(true);
         setOtpVisible(false);
     }
+
+    const handleRegenerateOtp = async () => {
+        setIsRegenerating(true);
+        await connectTelegram();
+        
+        setTimeout(() => {
+            setIsRegenerating(false);
+            alert("A new OTP has been generated!");
+        }, 700);
+    };
 
 
     async function connectGoogleFit() {
@@ -565,278 +557,37 @@ export default function NutritionLM() {
 
     return (
         <div className="flex h-screen font-sans text-gray-800 overflow-hidden" style={{ backgroundColor: COLOR_CONTENT_BG }}>
-            
-            {/* LEFT SIDEBAR */}
-            <div 
-                className={`${isMobile ? 'w-80' : (isSidebarOpen ? 'w-80' : 'w-16')}
-                transition-all duration-300 ease-in-out border-r border-gray-200 flex flex-col shrink-0
-                fixed md:relative inset-y-0 left-0 z-40 md:z-auto overflow-hidden`}
-                style={{ 
-                    backgroundColor: COLOR_ACCENT_DARK,
-                    transform: isMobile 
-                        ? (isSidebarOpen ? 'translateX(0)' : 'translateX(-100%)')
-                        : 'translateX(0)',
-                    pointerEvents: isMobile && !isSidebarOpen ? 'none' : 'auto'
-                }}
-            >
-                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center px-4 md:px-6 ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
-                    {(!isMobile && !isSidebarOpen) ? null : (
-                        <div className="flex items-center gap-2 font-bold text-xl text-white whitespace-nowrap">
-                            <Sparkles className="w-6 h-6 fill-current shrink-0" />
-                            <span className={isMobile ? '' : (isSidebarOpen ? '' : 'hidden')}>NutritionLM</span>
-                        </div>
-                    )}
-                    {isMobile ? (
-                        <button 
-                            onClick={() => setIsSidebarOpen(false)}
-                            className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
-                            aria-label="Close sidebar"
-                        >
-                            <X className="w-5 h-5" />
-                        </button>
-                    ) : (
-                        <>
-                            {isSidebarOpen ? (
-                                <button 
-                                    onClick={() => setIsSidebarOpen(false)}
-                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
-                                    aria-label="Close sidebar"
-                                >
-                                    <X className="w-5 h-5" />
-                                </button>
-                            ) : (
-                                <button
-                                    onClick={() => setIsSidebarOpen(true)}
-                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
-                                    aria-label="Open sidebar"
-                                >
-                                    <Menu className="w-5 h-5" />
-                                </button>
-                            )}
-                        </>
-                    )}
-                </div>
-
-                <div className={`p-4 flex-1 overflow-y-auto ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`}>
-                    <div className="flex justify-between items-center mb-4">
-                        <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">Sources ({sources.length})</h2>
-                        <button className="text-gray-400 hover:text-white">
-                            <Plus className="w-4 h-4" />
-                        </button>
-                    </div>
-
-                    <div className="space-y-3">
-                        <div className="border border-dashed rounded-xl p-4 flex flex-col items-center justify-center text-center cursor-pointer hover:bg-white/10 transition-colors" style={{ borderColor: 'rgba(255, 255, 255, 0.3)' }}>
-                            <div className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center mb-2">
-                                <Plus className="w-4 h-4 text-white" />
-                            </div>
-                            <span className="text-sm font-medium text-white">Add source</span>
-                            <span className="text-xs text-gray-400">PDF, TXT, MD, Audio</span>
-                        </div>
-
-                        {sources.map((source) => (
-                            <div key={source.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-shadow cursor-pointer" style={{ borderColor: COLOR_CONTENT_BG }}>
-                                <div className="flex items-start gap-3">
-                                    <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ backgroundColor: source.color, color: source.textColor }}>
-                                        <FileText className="w-4 h-4" />
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <h3 className="text-sm font-medium truncate" style={{ color: COLOR_ACCENT_DARK }}>{source.title}</h3>
-                                        <p className="text-xs text-gray-500 mt-0.5">{source.type} • Added today</p>
-                                    </div>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                
-                <div className={`p-4 border-t ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`} style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                    <div className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer">
-                        <div className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-xs shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
-                            CB
-                        </div>
-                        <div className={`flex-1 ${isMobile ? '' : (isSidebarOpen ? '' : 'hidden')}`}>
-                            <div className="text-sm font-medium text-white">Cool Beans</div>
-                            <div className="text-xs text-gray-400">Pro Plan</div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            {/* Overlay for mobile sidebar */}
-            {isSidebarOpen && (
-                <div 
-                    className="fixed inset-0 bg-black/50 z-30 md:hidden"
-                    onClick={() => setIsSidebarOpen(false)}
-                />
-            )}
+            <Sidebar 
+                isSidebarOpen={isSidebarOpen}
+                setIsSidebarOpen={setIsSidebarOpen}
+                isMobile={isMobile}
+                sources={sources}
+            />
 
             {/* CHAT AREA */}
             <div className="flex-1 flex flex-col relative w-full" style={{ backgroundColor: COLOR_CONTENT_BG }}>
-                
-                {/* Header */}
-                <header 
-                    className="h-16 flex items-center justify-between px-3 md:px-6 border-b backdrop-blur-sm sticky top-0 z-20 bg-white/80"
-                    style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
-                >
-                    {isMobile && (
-                        <button 
-                            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600"
-                        >
-                            {isSidebarOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
-                        </button>
-                    )}
+                <Header 
+                    isSidebarOpen={isSidebarOpen}
+                    setIsSidebarOpen={setIsSidebarOpen}
+                    isMobile={isMobile}
+                    sources={sources}
+                    telegramVerified={telegramVerified}
+                    googleFitVerified={googleFitVerified}
+                    onOpenOtpBox={openOtpBox}
+                    onConnectGoogleFit={connectGoogleFit}
+                />
 
-                    <div className="text-xs md:text-sm font-medium text-gray-500 hidden sm:block">
-                        {sources.length} sources selected
-                    </div>
-
-                    <div className="flex items-center gap-1.5 md:gap-3">
-
-                        {telegramVerified ? (
-                            <span 
-                                className="px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full font-medium cursor-default opacity-90"
-                                style={{ backgroundColor: "#4CAF50" }}
-                            >
-                                <span className="hidden sm:inline">Telegram Connected </span>✓
-                            </span>
-                        ) : (
-                            <button
-                                onClick={openOtpBox}
-                                className="px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full transition"
-                                style={{ backgroundColor: '#0088CC' }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0077B5'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0088CC'}
-                            >
-                                <span className="hidden sm:inline">Manage </span>Telegram
-                            </button>
-                        )}
-
-                        {googleFitVerified ? (
-                            <div 
-                                className="px-2 md:px-3 py-1 text-xs md:text-sm rounded-full font-medium flex items-center gap-1 border-2"
-                                style={{ 
-                                    backgroundColor: '#E8F5E9',
-                                    color: '#2E7D32',
-                                    borderColor: '#4CAF50',
-                                    cursor: 'default'
-                                }}
-                            >
-                                <CheckCircle className="w-3 h-3 md:w-4 md:h-4" style={{ color: '#4CAF50' }} />
-                                <span className="hidden sm:inline">Google Fit </span>Connected
-                            </div>
-                        ) : (
-                            <button
-                                onClick={connectGoogleFit}
-                                className="px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full transition"
-                                style={{ backgroundColor: COLOR_FACT_CHECK }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E8E7E'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_FACT_CHECK}
-                            >
-                                <span className="hidden sm:inline">Connect </span>Fit
-                            </button>
-                        )}
-
-                        <button 
-                            onClick={() => router.push('/analytics')}
-                            className="p-2 hover:bg-gray-100 rounded-lg text-gray-600 transition-colors"
-                            title="View Analytics"
-                        >
-                            <BarChart3 className="w-5 h-5" />
-                        </button>
-
-                    </div>
-
-                </header>
-
-                {/* OTP POPUP (positioned under Manage Telegram) */}
-                {showOtpBox && (
-                    <div className="fixed md:absolute top-16 right-2 md:right-[180px] z-50 animate-fadeIn max-w-[calc(100vw-1rem)] md:w-80">
-                        <div className="bg-white shadow-xl rounded-2xl p-4 md:p-5 w-full md:w-80 border border-gray-200">
-                            
-                            {/* Header */}
-                            <div className="flex justify-between items-center mb-4">
-                                <h3 className="text-sm font-bold text-gray-800">Telegram Verification</h3>
-                                <button 
-                                    onClick={() => setShowOtpBox(false)}
-                                    className="p-1 hover:bg-gray-100 rounded-full transition"
-                                >
-                                    <X className="w-4 h-4 text-gray-500" />
-                                </button>
-                            </div>
-
-                            {/* OTP BOX */}
-                            <div className="space-y-4">
-                                
-                                {/* OTP Display */}
-                                <div className="flex items-center justify-between bg-gray-50 px-4 py-3 rounded-lg border border-gray-200">
-                                    <span className="font-mono tracking-widest text-xl">
-                                        {otp !== null ? (otpVisible ? otp : "••••••") : "No OTP Yet"}
-                                    </span>
-
-                                    <button
-                                        onClick={() => setOtpVisible(!otpVisible)}
-                                        className="text-gray-600 hover:text-gray-800 transition"
-                                    >
-                                        {otpVisible ? "🙈" : "👁️"}
-                                    </button>
-                                </div>
-
-                                {/* COPY BUTTON */}
-                                <button
-                                    onClick={async () => {
-                                        try {
-                                            await navigator.clipboard.writeText(otp);
-                                            setCopied(true);
-                                            setTimeout(() => setCopied(false), 1500); // 1.5초 후 사라짐
-                                        } catch (err) {
-                                            console.error("Copy failed:", err);
-                                        }
-                                    }}
-                                    className="w-full py-2 rounded-lg border text-sm font-medium 
-                                            border-gray-300 text-gray-700 hover:bg-gray-50 transition"
-                                >
-                                    {copied ? "Copied!" : "📋 Copy OTP"}
-                                </button>
-
-                                {/* Regenerate OTP */}
-                                <button
-                                    onClick={async () => {
-                                        setIsRegenerating(true);
-                                        await connectTelegram();  // 기존 함수 그대로 사용
-                                        
-                                        setTimeout(() => {
-                                            setIsRegenerating(false);
-                                            alert("A new OTP has been generated!");
-                                        }, 700);
-                                    }}
-                                    className="w-full py-2 rounded-lg border text-sm font-medium 
-                                            border-gray-300 text-gray-700 hover:bg-gray-50 transition flex items-center justify-center"
-                                >
-                                    {isRegenerating ? (
-                                        <span className="flex items-center gap-2">
-                                            <div className="w-4 h-4 border-2 border-gray-300 border-t-transparent rounded-full animate-spin"></div>
-                                            Generating...
-                                        </span>
-                                    ) : (
-                                        "Regenerate OTP"
-                                    )}
-                                </button>
-
-                                {/* Open Bot */}
-                                <a
-                                    href="https://t.me/nutritionLM_Bot"
-                                    target="_blank"
-                                    className="block text-center bg-[#0088CC] text-white py-2 rounded-lg 
-                                            font-semibold hover:bg-[#0077B5] transition"
-                                >
-                                    Open Telegram Bot
-                                </a>
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <OtpPopup 
+                    showOtpBox={showOtpBox}
+                    setShowOtpBox={setShowOtpBox}
+                    otp={otp}
+                    otpVisible={otpVisible}
+                    setOtpVisible={setOtpVisible}
+                    copied={copied}
+                    setCopied={setCopied}
+                    isRegenerating={isRegenerating}
+                    onRegenerateOtp={handleRegenerateOtp}
+                />
 
 
 
@@ -845,399 +596,34 @@ export default function NutritionLM() {
                 <div className="flex-1 overflow-y-auto p-3 md:p-4 lg:p-8 scrollbar-hide">
                     <div className="max-w-3xl mx-auto space-y-6 md:space-y-8">
                         {messages.map((msg) => (
-                            <div key={msg.id} className={`flex gap-2 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-                                <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 
-                                    ${msg.role === 'ai' ? 'text-white' : 'bg-gray-200'}`}
-                                    style={{ 
-                                        backgroundColor: msg.role === 'ai' ? COLOR_PRIMARY : COLOR_ACCENT_DARK,
-                                        color: msg.role === 'user' ? 'white' : 'white'
-                                    }}
-                                >
-                                    {msg.role === 'ai' ? <Sparkles className="w-3 h-3 md:w-4 md:h-4" /> : <span className="text-[10px] md:text-xs font-bold">You</span>}
-                                </div>
-
-                                <div className={`flex flex-col max-w-[85%] md:max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                    <div className={`text-sm leading-relaxed py-2 px-4 rounded-2xl
-                                        ${msg.role === 'user' ? `text-gray-900 rounded-tr-none` : 'bg-transparent text-gray-800 -ml-2'}`}
-                                        style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
-                                    >
-                                        {/* Render Image in chat history */}
-                                        {(msg.image || msg.nutritionImage) && (
-                                            <div className="mb-2 relative">
-                                                <img 
-                                                    src={msg.image || msg.nutritionImage} 
-                                                    alt={msg.role === 'user' ? "User Upload" : "Food Image"} 
-                                                    className="max-w-full h-auto rounded-lg border border-gray-200 shadow-sm max-h-48 md:max-h-64 object-cover"
-                                                />
-                                                {/* Scanning animation overlay for nutrition images */}
-                                                {msg.nutritionImage && msg.nutritionData && msg.showScanAnimation && (
-                                                    <div className="absolute inset-0 rounded-lg pointer-events-none overflow-hidden transition-opacity duration-1000">
-                                                        <div className="absolute w-full h-0.5 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-scanLine" 
-                                                             style={{ 
-                                                                 boxShadow: '0 0 10px rgba(251, 191, 36, 0.6)',
-                                                                 top: '0%'
-                                                             }}></div>
-                                                        <div className="absolute inset-0 border-2 border-amber-400 rounded-lg animate-scanPulse opacity-30"></div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
-
-                                        {msg.comparisonData ? (
-                                            <div className="flex flex-col gap-3 w-full min-w-0">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    {/* Left Column */}
-                                                    <div className="bg-white/50 rounded-xl p-3 border border-green-100">
-                                                        <h4 className="font-bold text-green-700 mb-2 border-b border-green-100 pb-1">
-                                                            {msg.comparisonData.sideA.title}
-                                                        </h4>
-                                                        <ul className="space-y-1.5">
-                                                            {msg.comparisonData.sideA.points.map((pt, i) => (
-                                                                <li key={i} className="flex items-start gap-2 text-xs">
-                                                                    <span className="text-green-500 mt-0.5">•</span>
-                                                                    <span>{pt}</span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-
-                                                    {/* Right Column */}
-                                                    <div className="bg-white/50 rounded-xl p-3 border border-orange-100">
-                                                        <h4 className="font-bold text-orange-700 mb-2 border-b border-orange-100 pb-1">
-                                                            {msg.comparisonData.sideB.title}
-                                                        </h4>
-                                                        <ul className="space-y-1.5">
-                                                            {msg.comparisonData.sideB.points.map((pt, i) => (
-                                                                <li key={i} className="flex items-start gap-2 text-xs">
-                                                                    <span className="text-orange-500 mt-0.5">•</span>
-                                                                    <span>{pt}</span>
-                                                                </li>
-                                                            ))}
-                                                        </ul>
-                                                    </div>
-                                                </div>
-                                                
-                                                {/* Summary Footer */}
-                                                <div className="text-xs italic text-gray-500 bg-white/30 p-2 rounded-lg border border-gray-100">
-                                                    <span className="font-bold">Summary: </span>
-                                                    {msg.comparisonData.summary}
-                                                </div>
-                                            </div>
-                                        ) : (
-                                        // Standard Text Render
-                                        msg.text && (
-                                            <ReactMarkdown 
-                                                components={{
-                                                    p: ({node, ...props}) => <p className="mb-3 last:mb-0" {...props} />,
-                                                    ul: ({node, ...props}) => <ul className="list-disc pl-5 mt-2 mb-2" {...props} />,
-                                                    ol: ({node, ...props}) => <ol className="list-decimal pl-5 mt-2 mb-2" {...props} />,
-                                                    li: ({node, ...props}) => <li className="mb-1" {...props} />,
-                                                    strong: ({node, ...props}) => <span className="font-bold" {...props} />,
-                                                }}
-                                            >
-                                                {msg.text}
-                                            </ReactMarkdown>
-                                            )
-                                        )}
-                                        
-                                        {/* Display Citations if available */}
-                                        {msg.citations && msg.citations.length > 0 && (
-                                            <div className="mt-3 pt-3 border-t border-gray-200">
-                                                <div className="text-xs font-semibold text-gray-600 mb-2 flex items-center gap-1">
-                                                    <ShieldCheck className="w-3 h-3" />
-                                                    Sources:
-                                                </div>
-                                                <div className="space-y-1.5">
-                                                    {msg.citations.map((citation, idx) => (
-                                                        <a
-                                                            key={idx}
-                                                            href={citation.uri}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            className="block text-xs text-blue-600 hover:text-blue-800 hover:underline truncate"
-                                                            title={citation.uri}
-                                                        >
-                                                            {idx + 1}. {citation.title || citation.uri}
-                                                        </a>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-
-                                        {/* Display Nutrition Data if available */}
-                                        {msg.nutritionData && typeof msg.nutritionData === 'object' && (
-                                            <div className="mt-4 pt-4 border-t border-gray-200">
-                                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                                                    {Object.entries(msg.nutritionData).map(([key, value]) => (
-                                                        <div key={key} className="bg-white/50 p-3 rounded-xl border border-gray-100">
-                                                            <div className="flex justify-between items-center mb-2">
-                                                                <span className="font-medium text-sm capitalize text-gray-700">
-                                                                    {key}
-                                                                </span>
-                                                                <span className="text-xs text-gray-600 font-semibold">
-                                                                    {value}%
-                                                                </span>
-                                                            </div>
-                                                            <div className="w-full bg-gray-200 rounded-full h-2">
-                                                                <div
-                                                                    className="h-2 rounded-full transition-all"
-                                                                    style={{ 
-                                                                        width: `${Math.min(value, 100)}%`,
-                                                                        backgroundColor: COLOR_PRIMARY
-                                                                    }}
-                                                                ></div>
-                                                            </div>
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
+                            <ChatMessage key={msg.id} msg={msg} />
                         ))}
                         
-                        {isThinking && (
-                            <div className="flex gap-4">
-                                <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: COLOR_PRIMARY }}>
-                                    <Sparkles className="w-4 h-4" />
-                                </div>
-                                <div className="flex flex-col max-w-[85%] md:max-w-[80%] items-start">
-                                    {isScanning ? (
-                                        <div className="relative bg-white rounded-2xl p-4 md:p-6 border border-gray-200 shadow-sm w-full max-w-[500px]">
-                                            <div className="flex items-center gap-3 md:gap-4 mb-4">
-                                                <div className="relative w-16 h-16 md:w-24 md:h-24 bg-gray-100 rounded-lg overflow-hidden shrink-0">
-                                                    {scanningAttachment?.preview ? (
-                                                        <>
-                                                            <img 
-                                                                src={scanningAttachment.preview} 
-                                                                alt="Scanning" 
-                                                                className="w-full h-full object-cover"
-                                                            />
-                                                            {/* Scanning overlay */}
-                                                            <div className="absolute inset-0 pointer-events-none">
-                                                                <div className="absolute w-full h-1 bg-gradient-to-r from-transparent via-amber-400 to-transparent animate-scanLine" 
-                                                                     style={{ 
-                                                                         boxShadow: '0 0 15px rgba(251, 191, 36, 0.8)',
-                                                                         top: '0%'
-                                                                     }}></div>
-                                                            </div>
-                                                            {/* Pulse effect */}
-                                                            <div className="absolute inset-0 border-2 border-amber-400 rounded-lg animate-scanPulse pointer-events-none"></div>
-                                                        </>
-                                                    ) : (
-                                                        <div className="w-full h-full flex items-center justify-center">
-                                                            <UtensilsCrossed className="w-8 h-8 text-gray-400" />
-                                                        </div>
-                                                    )}
-                                                </div>
-                                                <div className="flex-1 min-w-0">
-                                                    <div className="text-base font-semibold text-gray-800 mb-1.5">
-                                                        {scanProgress.message || 'Scanning food...'}
-                                                    </div>
-                                                    <div className="text-sm text-gray-500">
-                                                        {scanProgress.stage === 1 && 'Identifying food items...'}
-                                                        {scanProgress.stage === 2 && 'Detecting ingredients from image...'}
-                                                        {scanProgress.stage === 3 && 'Calculating nutritional values...'}
-                                                        {scanProgress.stage === 4 && 'Preparing final report...'}
-                                                        {scanProgress.stage === 0 && 'Initializing scan...'}
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
-                                                        style={{ 
-                                                            width: scanProgress.stage >= 1 ? '100%' : '0%'
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
-                                                        style={{ 
-                                                            width: scanProgress.stage >= 2 ? '100%' : '0%'
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
-                                                        style={{ 
-                                                            width: scanProgress.stage >= 3 ? '100%' : '0%'
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                                <div className="h-2 bg-amber-200 rounded-full flex-1 overflow-hidden">
-                                                    <div 
-                                                        className="h-full bg-amber-500 rounded-full transition-all duration-500" 
-                                                        style={{ 
-                                                            width: scanProgress.stage >= 4 ? '100%' : '0%'
-                                                        }}
-                                                    ></div>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ) : (
-                                        <div className="text-sm leading-relaxed py-2 px-4 rounded-2xl bg-transparent text-gray-500 -ml-2 animate-pulse">
-                                            NutritionLM is thinking...
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        )}
+                        <ThinkingIndicator 
+                            isThinking={isThinking}
+                            isScanning={isScanning}
+                            scanningAttachment={scanningAttachment}
+                            scanProgress={scanProgress}
+                        />
                         <div ref={messagesEndRef} />
                     </div>
                 </div>
 
-                {/* Input Area */}
-                <div className="p-3 md:p-4 lg:p-6 pb-6 md:pb-8">
-                    <div className="max-w-3xl mx-auto">
-                        
-                        {messages.length < 3 && !attachment && (
-                            <div className="flex gap-2 mb-3 md:mb-4 overflow-x-auto pb-2 scrollbar-hide">
-                                {suggestedPrompts.map((prompt, i) => (
-                                    <button 
-                                        key={i}
-                                        onClick={() => setInput(prompt)}
-                                        className="whitespace-nowrap px-3 md:px-4 py-1.5 md:py-2 bg-white border rounded-full text-xs md:text-sm transition-colors shadow-sm"
-                                        style={{ borderColor: 'rgba(52, 73, 94, 0.1)', color: COLOR_ACCENT_DARK }}
-                                        onMouseEnter={(e) => {
-                                            e.currentTarget.style.borderColor = COLOR_PRIMARY;
-                                            e.currentTarget.style.color = COLOR_PRIMARY;
-                                        }}
-                                        onMouseLeave={(e) => {
-                                            e.currentTarget.style.borderColor = 'rgba(52, 73, 94, 0.1)';
-                                            e.currentTarget.style.color = COLOR_ACCENT_DARK;
-                                        }}
-                                    >
-                                        {prompt}
-                                    </button>
-                                ))}
-                            </div>
-                        )}
-
-                        <div 
-                            className="bg-white rounded-3xl shadow-lg border overflow-hidden transition-shadow" 
-                            style={{ 
-                                borderColor: isInputFocused ? `${COLOR_PRIMARY}80` : 'rgba(52, 73, 94, 0.1)',
-                                boxShadow: isInputFocused ? `0 0 0 1px ${COLOR_PRIMARY}40` : undefined
-                            }}
-                        >
-                            {/* Hidden File Input */}
-                            <input
-                                type="file"
-                                ref={fileInputRef}
-                                onChange={handleFileSelect}
-                                accept="image/*"
-                                className="hidden"
-                            />
-
-                            {/* Image Preview Area */}
-                            {attachment && (
-                                <div className="px-4 pt-4 pb-0">
-                                    <div className="relative inline-block group">
-                                        <img 
-                                            src={attachment.preview} 
-                                            alt="Preview" 
-                                            className="h-20 w-20 object-cover rounded-xl border border-gray-200 shadow-sm" 
-                                        />
-                                        <button 
-                                            onClick={removeAttachment} 
-                                            className="absolute -top-2 -right-2 bg-white text-gray-500 hover:text-red-500 rounded-full p-1 shadow-md border border-gray-100 transition-colors"
-                                        >
-                                            <X size={14} />
-                                        </button>
-                                    </div>
-                                </div>
-                            )}
-
-                            <textarea
-                                value={input}
-                                onChange={(e) => setInput(e.target.value)}
-                                onFocus={() => setIsInputFocused(true)}
-                                onBlur={() => setIsInputFocused(false)}
-                                onKeyDown={(e) => {
-                                    if(e.key === 'Enter' && !e.shiftKey) {
-                                        e.preventDefault();
-                                        handleSend();
-                                    }
-                                }}
-                                placeholder="Ask NutritionLM or attach a food label..."
-                                className="w-full bg-transparent border-none focus:ring-0 outline-none p-3 md:p-4 min-h-[50px] md:min-h-[60px] max-h-40 resize-none text-sm md:text-base text-gray-700 placeholder:text-gray-400"
-                                rows={1}
-                            />
-                            
-                            <div className="flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2 sm:gap-0 px-3 pb-3 pt-1">
-                                <div className="flex items-center gap-1.5 md:gap-2 flex-wrap">
-                                    <button 
-                                        onClick={() => setActiveButton(activeButton === 'factCheck' ? null : 'factCheck')}
-                                        className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-colors"
-                                        style={{
-                                            backgroundColor: activeButton === 'factCheck' ? COLOR_FACT_CHECK : COLOR_FACT_CHECK_LIGHT,
-                                            color: activeButton === 'factCheck' ? 'white' : COLOR_ACCENT_DARK
-                                        }}
-                                    >
-                                        <ShieldCheck className="w-3 h-3 md:w-4 md:h-4" />
-                                        <span className="hidden sm:inline">Fact </span>Check
-                                    </button>
-
-                                    <button 
-                                        onClick={() => setActiveButton(activeButton === 'compare' ? null : 'compare')}
-                                        className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-colors"
-                                        style={{
-                                            backgroundColor: activeButton === 'compare' ? COLOR_COMPARE : COLOR_COMPARE_LIGHT,
-                                            color: activeButton === 'compare' ? 'white' : COLOR_ACCENT_DARK
-                                        }}
-                                    >
-                                        <Scale className="w-3 h-3 md:w-4 md:h-4" />
-                                        Compare
-                                    </button>
-
-                                    <button 
-                                        onClick={() => setActiveButton(activeButton === 'nutrition' ? null : 'nutrition')}
-                                        className="flex items-center gap-1 px-2 md:px-3 py-1 md:py-1.5 rounded-full text-[10px] md:text-xs font-semibold transition-colors"
-                                        style={{
-                                            backgroundColor: activeButton === 'nutrition' ? COLOR_NUTRITION : COLOR_NUTRITION_LIGHT,
-                                            color: activeButton === 'nutrition' ? 'white' : COLOR_ACCENT_DARK
-                                        }}
-                                    >
-                                        <UtensilsCrossed className="w-3 h-3 md:w-4 md:h-4" />
-                                        <span className="hidden sm:inline">Nutrition </span>Check
-                                    </button>
-                                </div>
-
-                                <div className="flex items-center gap-1.5 md:gap-2 justify-end">
-                                    {/* Trigger File Input */}
-                                    <button 
-                                        onClick={() => fileInputRef.current?.click()}
-                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors"
-                                        title="Attach image"
-                                    >
-                                        <Paperclip className="w-5 h-5" />
-                                    </button>
-
-                                    <button 
-                                        onClick={handleSend}
-                                        disabled={!input.trim() && !attachment} // Allow send if image is attached even if text is empty
-                                        className={`p-2 rounded-full transition-all duration-200 
-                                            ${(input.trim() || attachment)
-                                                ? 'shadow-md text-white' 
-                                                : 'bg-gray-100 text-gray-300 cursor-not-allowed'}`}
-                                        style={{ backgroundColor: (input.trim() || attachment) ? COLOR_PRIMARY : 'rgb(243, 244, 246)' }} 
-                                    >
-                                        <Send className="w-5 h-5 ml-0.5" />
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
-
-                        <p className="text-center text-[10px] md:text-xs text-gray-400 mt-2 md:mt-3 px-2">
-                            NutritionLM may produce inaccurate information about health. Verify with a professional.
-                        </p>
-                    </div>
-                </div>
+                <InputArea
+                    input={input}
+                    setInput={setInput}
+                    attachment={attachment}
+                    fileInputRef={fileInputRef}
+                    isInputFocused={isInputFocused}
+                    setIsInputFocused={setIsInputFocused}
+                    activeButton={activeButton}
+                    setActiveButton={setActiveButton}
+                    suggestedPrompts={suggestedPrompts}
+                    messages={messages}
+                    onFileSelect={handleFileSelect}
+                    onRemoveAttachment={removeAttachment}
+                    onSend={handleSend}
+                />
 
             </div>
         </div>
