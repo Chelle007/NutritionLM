@@ -28,7 +28,7 @@ export default function Sidebar({
                     pointerEvents: isMobile && !isSidebarOpen ? 'none' : 'auto'
                 }}
             >
-                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center px-4 md:px-6 ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
+                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center ${isMobile ? 'px-4' : (isSidebarOpen ? 'pl-6 pr-4' : 'px-4')} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
                     {(!isMobile && !isSidebarOpen) ? null : (
                         <div className="flex items-center gap-2 font-bold text-xl text-white whitespace-nowrap">
                             <Sparkles className="w-6 h-6 fill-current shrink-0" />
