@@ -91,4 +91,17 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
     );
   }
 }
+
+// example response:
+// {
+//   food_name: Katsu Curry
+//   ingredients: [
+//     'Katsu (fried breaded cutlet)',
+//     'Curry sauce',
+//     'White rice',
+//     'Potatoes',
+//     'Carrots',
+//     'Pickled vegetables'
+//   ]
+// }
 // [END]

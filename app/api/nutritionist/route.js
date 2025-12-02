@@ -76,3 +76,15 @@ Example format:
     );
   }
 }
+
+// example response:
+// {
+//   "nutritions": {
+//     "protein": 50,
+//     "carbohydrates": 90,
+//     "fats": 84,
+//     "vitamins": 95,
+//     "minerals": 99,
+//     "fiber": 80
+//   }
+// }
