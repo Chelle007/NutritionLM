@@ -48,6 +48,7 @@ export default function NutritionLM() {
     const messagesEndRef = useRef(null);
 
     const [telegramVerified, setTelegramVerified] = useState(false);
+    const [googleFitVerified, setGoogleFitVerified] = useState(false);
 
     useEffect(() => {
         async function loadUser() {
@@ -61,13 +62,60 @@ export default function NutritionLM() {
 
             const { data } = await supabase
             .from("users")
-            .select("telegram_verified")
+            .select("telegram_verified, google_fit_verified")
             .eq("id", user.id)
             .single();
 
             setTelegramVerified(data?.telegram_verified === true);
+            setGoogleFitVerified(data?.google_fit_verified === true);
         }
         loadUser();
+    }, []);
+
+    // Handle OAuth callback
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const googleFitConnected = params.get("google_fit_connected");
+        const error = params.get("error");
+        const details = params.get("details");
+
+        if (googleFitConnected === "true") {
+            // Reload user data to update verification status
+            const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+                process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+            );
+            supabase.auth.getUser().then(({ data: { user } }) => {
+                if (user) {
+                    supabase
+                        .from("users")
+                        .select("google_fit_verified")
+                        .eq("id", user.id)
+                        .single()
+                        .then(({ data }) => {
+                            if (data) {
+                                setGoogleFitVerified(data.google_fit_verified === true);
+                            }
+                        });
+                }
+            });
+            // Clean up URL
+            window.history.replaceState({}, "", window.location.pathname);
+        } else if (error) {
+            let errorMessage = `Google Fit connection failed: ${error}`;
+            if (details) {
+                errorMessage += `\n\nDetails: ${decodeURIComponent(details)}`;
+            }
+            
+            // Special handling for missing database columns
+            if (error === "missing_database_columns") {
+                errorMessage += "\n\nPlease add the required columns to your users table:\n- google_fit_access_token (TEXT)\n- google_fit_refresh_token (TEXT)\n- google_fit_token_expires_at (TIMESTAMP)\n- google_fit_verified (BOOLEAN)";
+            }
+            
+            alert(errorMessage);
+            // Clean up URL
+            window.history.replaceState({}, "", window.location.pathname);
+        }
     }, []);
 
 
@@ -95,6 +143,23 @@ export default function NutritionLM() {
 
         if (error) console.log(error);
         alert(`Your OTP is ${otp}. Please send this code to the Telegram bot.`);
+    }
+
+    async function connectGoogleFit() {
+        const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+        );
+
+        const { data: { user } } = await supabase.auth.getUser();
+
+        if (!user) {
+            alert("Please log in first.");
+            return;
+        }
+
+        // Redirect to Google OAuth flow (no need to pass userId, it will be retrieved from session)
+        window.location.href = `/api/google-fit/auth`;
     }
 
     const sources = [
@@ -362,18 +427,36 @@ export default function NutritionLM() {
 
                     <div className="flex items-center gap-3">
                         {telegramVerified ? (
-                            <span className="px-3 py-1 text-sm text-white rounded-full font-medium" style={{ backgroundColor: COLOR_PRIMARY }}>
-                                Verified ✓
+                            <span className="px-3 py-1 text-sm text-white rounded-full font-medium" style={{ backgroundColor: '#0088CC' }}>
+                                Telegram ✓
                             </span>
                         ) : (
                             <button
                                 onClick={connectTelegram}
                                 className="px-3 py-1 text-sm text-white rounded-full transition"
-                                style={{ backgroundColor: COLOR_PRIMARY }}
-                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#45a049'}
-                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_PRIMARY}
+                                style={{ backgroundColor: '#0088CC' }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0077B5'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0088CC'}
                             >
                                 Connect Telegram
+                            </button>
+                        )}
+                        {googleFitVerified ? (
+                            <span 
+                                className="px-3 py-1 text-sm text-white rounded-full font-medium cursor-not-allowed opacity-90"
+                                style={{ backgroundColor: COLOR_FACT_CHECK }}
+                            >
+                                Google Fit Connected
+                            </span>
+                        ) : (
+                            <button
+                                onClick={connectGoogleFit}
+                                className="px-3 py-1 text-sm text-white rounded-full transition"
+                                style={{ backgroundColor: COLOR_FACT_CHECK }}
+                                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E8E7E'}
+                                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_FACT_CHECK}
+                            >
+                                Connect Google Fit
                             </button>
                         )}
                         <button className="p-2 hover:bg-gray-100 rounded-lg text-gray-600">
