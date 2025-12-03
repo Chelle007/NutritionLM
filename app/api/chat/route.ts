@@ -13,7 +13,7 @@ export async function POST(req: NextRequest) {
     
     // 1. Base Configuration
     let modelConfig: any = { 
-        model: "gemini-2.0-flash-exp",
+        model: "gemini-2.0-flash-exp", // or "gemini-2.5-pro" for better results
     };
 
     let systemInstruction = "";
