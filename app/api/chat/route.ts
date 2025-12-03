@@ -111,18 +111,24 @@ export async function POST(req: NextRequest) {
           The user wants a factual fact check on the topic.
           
           ### IMPORTANT REQUIREMENTS:
-          1. Use Google Search to find at least 5 authoritative sources. STRICTLY prioritize Tier 1 sources (government & global authorities).
+          1. FIRST, you MUST use the Google Search tool to find at least 5 authoritative sources. STRICTLY prioritize Tier 1 sources (government & global authorities).
           2. If Tier 1 sources are insufficient, then use Tier 2, then Tier 3. Avoid Tier 4 unless specifically needed.
           3. Verify all claims against these high-quality sources.
           4. Use inline citations like [1], [2], [3], [4], [5] throughout your response to cite your sources.
           5. Ensure you reference at least 5 different sources in your fact-check, with preference for Tier 1 sources.
           6. Format your response with clear citations for each factual claim you make.
+          7. CRITICAL: You must actively use the Google Search tool - do not rely on your training data alone. Search for current, authoritative sources.
           
           ### Structure your response:
           - Start with a brief summary of what you're fact-checking
           - Provide detailed fact-checking with citations [1], [2], etc. for each claim
           - Conclude with a summary of findings
           - Always cite your sources using [1], [2], [3], [4], [5] format
+          
+          ### SOURCE CITATION:
+          - The sources you use will be automatically extracted from your search results
+          - Make sure to cite each source with [1], [2], [3], [4], [5] format matching the sources you found
+          - At least 5 different sources must be referenced and cited
         `;
     }
     // 3c. Default chat mode
@@ -154,7 +160,7 @@ export async function POST(req: NextRequest) {
         textMessage = `Search the web and compare perspectives on: "${textMessage}". Find at least 5 authoritative sources, prioritizing government and global health authority websites (nih.gov, cdc.gov, who.int, nhs.uk, etc.) over other sources.`;
     } 
     else if (factCheck) {
-        textMessage = `Research and fact-check: ${textMessage}. Search for at least 5 authoritative sources, prioritizing government and global health authority websites (nih.gov, cdc.gov, who.int, nhs.uk, etc.) over other sources. Cite them using [1], [2], [3], [4], [5] format.`;
+        textMessage = `Use Google Search to research and fact-check: ${textMessage}. You MUST use the Google Search tool to find at least 5 authoritative sources, prioritizing government and global health authority websites (nih.gov, cdc.gov, who.int, nhs.uk, etc.) over other sources. Cite all sources using [1], [2], [3], [4], [5] format throughout your response.`;
     }
 
     parts.push({ text: textMessage });
@@ -180,6 +186,11 @@ export async function POST(req: NextRequest) {
           return null;
         })
         .filter(Boolean);
+    }
+    
+    // Log if citations are missing in fact check mode (for debugging)
+    if (factCheck && citations.length === 0) {
+      console.warn("Fact Check mode: No citations found in grounding metadata. Model may not have used Google Search tool.");
     }
 
     return NextResponse.json({ 
