@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Sparkles, Menu, X, Plus, FileText, User, Import, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
+import { Sparkles, Menu, X, Plus, FileText, User, Import, ChevronDown, ChevronUp, Trash2, MessageSquare, Library } from 'lucide-react';
 import { createBrowserClient } from "@supabase/ssr";
 import {
     COLOR_SECONDARY_LIGHT,
@@ -20,12 +20,19 @@ export default function Sidebar({
     setAttachment = { setAttachment },
     onOpenProfile,
     onSourceUpload,
-    onSourceDelete
+    onSourceDelete,
+    chatSessions = [],
+    currentChatSessionId = null,
+    onChatSessionSelect = null,
+    onNewChat = null,
+    onDeleteChatSession = null
 }) {
     const [userFullName, setUserFullName] = useState('User');
     const [isExpanded, setIsExpanded] = useState(false);
     const [isUploading, setIsUploading] = useState(false);
     const [deletingId, setDeletingId] = useState(null);
+    const [viewMode, setViewMode] = useState('library'); // 'library' or 'chat'
+    const [deletingChatId, setDeletingChatId] = useState(null);
     const fileInputRef = useRef(null); 
 
     async function urlToFile(url) {
@@ -125,6 +132,38 @@ export default function Sidebar({
         return date.toLocaleDateString();
     };
 
+    const formatChatDate = (dateString) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 0) return 'Today';
+        if (diffDays === 1) return 'Yesterday';
+        if (diffDays <= 7) return `${diffDays} days ago`;
+        return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    };
+
+    const handleDeleteChatSession = async (sessionId, e) => {
+        e.stopPropagation();
+        
+        if (!confirm('Are you sure you want to delete this chat?')) {
+            return;
+        }
+
+        setDeletingChatId(sessionId);
+        try {
+            if (onDeleteChatSession) {
+                await onDeleteChatSession(sessionId);
+            }
+        } catch (error) {
+            console.error('Error deleting chat session:', error);
+            alert('Failed to delete chat. Please try again.');
+        } finally {
+            setDeletingChatId(null);
+        }
+    };
+
     return (
         <>
             <div
@@ -139,31 +178,48 @@ export default function Sidebar({
                     pointerEvents: isMobile && !isSidebarOpen ? 'none' : 'auto'
                 }}
             >
-                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-end'} items-center ${isMobile ? 'px-4' : (isSidebarOpen ? 'pl-6 pr-4' : 'px-4')} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
-                    {isMobile ? (
+                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center ${isMobile ? 'px-4' : (isSidebarOpen ? 'pl-4 pr-4' : 'px-4')} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
+                    {(!isMobile && !isSidebarOpen) ? (
                         <button
-                            onClick={() => setIsSidebarOpen(false)}
+                            onClick={() => setIsSidebarOpen(true)}
                             className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
                         >
-                            <X className="w-5 h-5" />
+                            <Menu className="w-5 h-5" />
                         </button>
                     ) : (
                         <>
-                            {isSidebarOpen ? (
+                            {/* VIEW MODE TOGGLE */}
+                            <div className="flex gap-1 p-1 rounded-lg bg-white/10">
                                 <button
-                                    onClick={() => setIsSidebarOpen(false)}
-                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+                                    onClick={() => setViewMode('library')}
+                                    className={`flex items-center justify-center gap-2 px-6 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                        viewMode === 'library'
+                                            ? 'bg-white text-gray-900'
+                                            : 'text-gray-300 hover:text-white'
+                                    }`}
                                 >
-                                    <X className="w-5 h-5" />
+                                    <Library className="w-4 h-4" />
+                                    <span>Library</span>
                                 </button>
-                            ) : (
                                 <button
-                                    onClick={() => setIsSidebarOpen(true)}
-                                    className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+                                    onClick={() => setViewMode('chat')}
+                                    className={`flex items-center justify-center gap-2 px-6 py-1.5 rounded-md text-sm font-medium transition-colors ${
+                                        viewMode === 'chat'
+                                            ? 'bg-white text-gray-900'
+                                            : 'text-gray-300 hover:text-white'
+                                    }`}
                                 >
-                                    <Menu className="w-5 h-5" />
+                                    <MessageSquare className="w-4 h-4" />
+                                    <span>Chats</span>
                                 </button>
-                            )}
+                            </div>
+                            
+                            <button
+                                onClick={() => setIsSidebarOpen(false)}
+                                className="p-2 hover:bg-white/10 rounded-lg text-white transition-colors"
+                            >
+                                <X className="w-5 h-5" />
+                            </button>
                         </>
                     )}
                 </div>
@@ -173,12 +229,88 @@ export default function Sidebar({
                     <div className="flex-1"></div>
                 ) : (
                     <div className="p-4 flex-1 overflow-y-auto">
+                        {/* CHAT HISTORY VIEW */}
+                        {viewMode === 'chat' ? (
+                            <>
+                                <div className="flex justify-between items-center mb-3">
+                                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                        Chat History
+                                    </h2>
+                                    <button
+                                        onClick={() => {
+                                            if (onNewChat) {
+                                                onNewChat();
+                                            }
+                                        }}
+                                        className="text-gray-400 hover:text-white transition-colors"
+                                        title="New chat"
+                                    >
+                                        <Plus className="w-4 h-4" />
+                                    </button>
+                                </div>
 
-                        {/* LIBRARY TITLE */}
-                        <div className="flex justify-between items-center mb-3">
-                            <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                                Library
-                            </h2>
+                                <div className="space-y-1">
+                                    {chatSessions.length === 0 ? (
+                                        <div className="text-center py-6 text-gray-400 text-sm">
+                                            No chats yet.<br />
+                                            Click + to start a new chat.
+                                        </div>
+                                    ) : (
+                                        chatSessions.map((session) => (
+                                            <div
+                                                key={session.id}
+                                                onClick={() => {
+                                                    if (onChatSessionSelect) {
+                                                        onChatSessionSelect(session.id);
+                                                    }
+                                                }}
+                                                className={`group relative rounded-lg p-3 cursor-pointer transition-colors ${
+                                                    currentChatSessionId === session.id
+                                                        ? 'bg-white text-gray-900'
+                                                        : 'bg-white/5 hover:bg-white/10 text-white'
+                                                }`}
+                                            >
+                                                <div className="flex items-start gap-2">
+                                                    <MessageSquare className={`w-4 h-4 mt-0.5 shrink-0 ${
+                                                        currentChatSessionId === session.id ? 'text-gray-600' : 'text-gray-400'
+                                                    }`} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <h3 className="text-sm font-medium truncate">
+                                                            {session.title || 'New Chat'}
+                                                        </h3>
+                                                        <p className={`text-xs mt-0.5 ${
+                                                            currentChatSessionId === session.id ? 'text-gray-500' : 'text-gray-400'
+                                                        }`}>
+                                                            {formatChatDate(session.updated_at || session.created_at)}
+                                                        </p>
+                                                    </div>
+                                                    {currentChatSessionId === session.id && (
+                                                        <button
+                                                            onClick={(e) => handleDeleteChatSession(session.id, e)}
+                                                            disabled={deletingChatId === session.id}
+                                                            className="opacity-0 group-hover:opacity-100 p-1 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-all disabled:opacity-50"
+                                                            title="Delete chat"
+                                                        >
+                                                            {deletingChatId === session.id ? (
+                                                                <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                                            ) : (
+                                                                <Trash2 className="w-3.5 h-3.5" />
+                                                            )}
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
+                            </>
+                        ) : (
+                            <>
+                                {/* LIBRARY TITLE */}
+                                <div className="flex justify-between items-center mb-3">
+                                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
+                                        Library
+                                    </h2>
 
                             {telegramPhotos.length > 0 && (
                                 <button
@@ -313,6 +445,8 @@ export default function Sidebar({
                                 ))
                             )}
                         </div>
+                            </>
+                        )}
 
                     </div>
                 )}

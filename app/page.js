@@ -48,6 +48,9 @@ export default function NutritionLM() {
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
     const [sources, setSources] = useState([]);
     const [isLoadingSources, setIsLoadingSources] = useState(true);
+    const [chatSessions, setChatSessions] = useState([]);
+    const [currentChatSessionId, setCurrentChatSessionId] = useState(null);
+    const [isLoadingChatSessions, setIsLoadingChatSessions] = useState(true);
 
     // Handle responsive detection
     useEffect(() => {
@@ -87,9 +90,74 @@ export default function NutritionLM() {
         loadUser();
     }, []);
 
-    // Load chat history
+    // Load chat sessions
+    useEffect(() => {
+        async function loadChatSessions() {
+            const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+                process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+            );
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                setIsLoadingChatSessions(false);
+                return;
+            }
+
+            const { data: sessions, error } = await supabase
+                .from("chat_sessions")
+                .select("*")
+                .eq("user_id", user.id)
+                .order("updated_at", { ascending: false });
+
+            if (error) {
+                console.error("Error loading chat sessions:", error);
+                setIsLoadingChatSessions(false);
+                return;
+            }
+
+            if (sessions && sessions.length > 0) {
+                setChatSessions(sessions);
+                // Set the most recent session as current if none is selected
+                if (!currentChatSessionId) {
+                    setCurrentChatSessionId(sessions[0].id);
+                }
+            } else {
+                // Create a default session if none exists
+                const { data: newSession, error: createError } = await supabase
+                    .from("chat_sessions")
+                    .insert({
+                        user_id: user.id,
+                        title: "New Chat"
+                    })
+                    .select()
+                    .single();
+
+                if (!createError && newSession) {
+                    setChatSessions([newSession]);
+                    setCurrentChatSessionId(newSession.id);
+                }
+            }
+
+            setIsLoadingChatSessions(false);
+        }
+        loadChatSessions();
+    }, []);
+
+    // Load chat history for current session
     useEffect(() => {
         async function loadChatHistory() {
+            if (!currentChatSessionId) {
+                setIsLoadingHistory(false);
+                // Show welcome message if no session
+                setMessages([{ 
+                    id: 1, 
+                    role: 'ai', 
+                    text: "Hello! I'm NutritionLM. I've analyzed your uploaded dietary guidelines and meal plans. How can I help you eat better today?" 
+                }]);
+                return;
+            }
+
             const supabase = createBrowserClient(
                 process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
                 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
@@ -98,7 +166,6 @@ export default function NutritionLM() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) {
                 setIsLoadingHistory(false);
-                // Show welcome message if not logged in
                 setMessages([{ 
                     id: 1, 
                     role: 'ai', 
@@ -111,13 +178,13 @@ export default function NutritionLM() {
                 .from("chat_messages")
                 .select("*")
                 .eq("user_id", user.id)
+                .eq("chat_session_id", currentChatSessionId)
                 .order("created_at", { ascending: true })
                 .limit(100); // Load last 100 messages
 
             if (error) {
                 console.error("Error loading chat history:", error);
                 setIsLoadingHistory(false);
-                // Show welcome message on error
                 setMessages([{ 
                     id: 1, 
                     role: 'ai', 
@@ -164,7 +231,7 @@ export default function NutritionLM() {
             setIsLoadingHistory(false);
         }
         loadChatHistory();
-    }, []);
+    }, [currentChatSessionId]);
 
     useEffect(() => {
         async function loadTelegramPhotos() {
@@ -421,6 +488,76 @@ export default function NutritionLM() {
         } catch (error) {
             console.error('Error deleting source:', error);
             throw error;
+        }
+    };
+
+    // Handle new chat creation
+    const handleNewChat = async () => {
+        const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+        );
+
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return;
+
+        const { data: newSession, error } = await supabase
+            .from("chat_sessions")
+            .insert({
+                user_id: user.id,
+                title: "New Chat"
+            })
+            .select()
+            .single();
+
+        if (error) {
+            console.error("Error creating new chat session:", error);
+            alert("Failed to create new chat. Please try again.");
+            return;
+        }
+
+        setChatSessions(prev => [newSession, ...prev]);
+        setCurrentChatSessionId(newSession.id);
+        setMessages([{ 
+            id: 1, 
+            role: 'ai', 
+            text: "Hello! I'm NutritionLM. I've analyzed your uploaded dietary guidelines and meal plans. How can I help you eat better today?" 
+        }]);
+    };
+
+    // Handle chat session selection
+    const handleChatSessionSelect = (sessionId) => {
+        setCurrentChatSessionId(sessionId);
+    };
+
+    // Handle chat session deletion
+    const handleDeleteChatSession = async (sessionId) => {
+        const supabase = createBrowserClient(
+            process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+            process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+        );
+
+        const { error } = await supabase
+            .from("chat_sessions")
+            .delete()
+            .eq("id", sessionId);
+
+        if (error) {
+            console.error("Error deleting chat session:", error);
+            throw new Error("Failed to delete chat session");
+        }
+
+        setChatSessions(prev => prev.filter(s => s.id !== sessionId));
+        
+        // If deleted session was current, switch to another or create new
+        if (currentChatSessionId === sessionId) {
+            const remainingSessions = chatSessions.filter(s => s.id !== sessionId);
+            if (remainingSessions.length > 0) {
+                setCurrentChatSessionId(remainingSessions[0].id);
+            } else {
+                // Create a new session if none remain
+                handleNewChat();
+            }
         }
     };
 
@@ -781,6 +918,7 @@ export default function NutritionLM() {
                     image: imageData,
                     factCheck: activeButton === 'factCheck',
                     compare: activeButton === 'compare',
+                    chatSessionId: currentChatSessionId,
                 }),
             });
 
@@ -800,6 +938,29 @@ export default function NutritionLM() {
             }
 
             const data = await res.json();
+
+            // Update current session ID if a new one was created
+            if (data.chatSessionId) {
+                if (data.chatSessionId !== currentChatSessionId) {
+                    setCurrentChatSessionId(data.chatSessionId);
+                }
+                // Reload chat sessions to get updated titles and order
+                const supabase = createBrowserClient(
+                    process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+                    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+                );
+                const { data: { user } } = await supabase.auth.getUser();
+                if (user) {
+                    const { data: sessions } = await supabase
+                        .from("chat_sessions")
+                        .select("*")
+                        .eq("user_id", user.id)
+                        .order("updated_at", { ascending: false });
+                    if (sessions) {
+                        setChatSessions(sessions);
+                    }
+                }
+            }
 
             let finalCitations = data.citations || []; 
             let parsedComparison = null;
@@ -858,6 +1019,11 @@ export default function NutritionLM() {
                 onOpenProfile={() => setIsProfileModalOpen(true)}
                 onSourceUpload={handleSourceUpload}
                 onSourceDelete={handleSourceDelete}
+                chatSessions={chatSessions}
+                currentChatSessionId={currentChatSessionId}
+                onChatSessionSelect={handleChatSessionSelect}
+                onNewChat={handleNewChat}
+                onDeleteChatSession={handleDeleteChatSession}
             />
 
             {/* CHAT AREA */}
