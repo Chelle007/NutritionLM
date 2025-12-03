@@ -37,7 +37,7 @@ export async function POST(request) {
     const genAI = new GoogleGenerativeAI(apiKey);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
 
-    // Prepare the parts array with image and prompt
+    // Analyze ingredients from the image
     const parts = [
       {
         inlineData: {
@@ -46,16 +46,36 @@ export async function POST(request) {
         },
       },
       {
-        text: `Identify the name of the food and all the ingredients in this image. 
+        text: `Analyze this image. If it contains food or a meal, identify the name of the food and all the ingredients with their estimated weight in grams for each ingredient.
+If the image does not contain food, set food_name to "not a food" and ingredients to null.
+
 ONLY RESPOND WITH THE JSON FORMAT. For example:
 {
   "food_name": "Chicken Burger",
   "ingredients": [
-    "Chicken",
-    "Burger",
-    "Lettuce",
-    "Tomato"
+    {
+      "name": "Chicken",
+      "grams": 120
+    },
+    {
+      "name": "Burger Bun",
+      "grams": 50
+    },
+    {
+      "name": "Lettuce",
+      "grams": 20
+    },
+    {
+      "name": "Tomato",
+      "grams": 30
+    }
   ]
+}
+
+Or if not food:
+{
+  "food_name": "not a food",
+  "ingredients": null
 }`,
       },
     ];
@@ -94,14 +114,14 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
 
 // example response:
 // {
-//   food_name: Katsu Curry
+//   food_name: "Katsu Curry",
 //   ingredients: [
-//     'Katsu (fried breaded cutlet)',
-//     'Curry sauce',
-//     'White rice',
-//     'Potatoes',
-//     'Carrots',
-//     'Pickled vegetables'
+//     { name: "Katsu (fried breaded cutlet)", grams: 150 },
+//     { name: "Curry sauce", grams: 100 },
+//     { name: "White rice", grams: 200 },
+//     { name: "Potatoes", grams: 80 },
+//     { name: "Carrots", grams: 50 },
+//     { name: "Pickled vegetables", grams: 30 }
 //   ]
 // }
 // [END]

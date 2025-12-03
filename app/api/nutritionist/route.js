@@ -31,16 +31,16 @@ export async function POST(request) {
         text: `The food name is "${food_name}". The ingredients are: ${ingredients.join(", ")}.
 
 ONLY RESPOND WITH THE JSON FORMAT AND NO EXPLANATION. 
-Provide 6 types of nutritions as specified below and its estimated amount (0-100) for a single serving of the food:
+Provide 6 types of nutritions as specified below and its estimated amount in grams for a single serving of the food:
 
 Example format:
 {
-  "protein": 50,
-  "carbohydrates": 90,
-  "fats": 84,
-  "vitamins": 95,
-  "minerals": 99,
-  "fiber": 80
+  "protein": 25,
+  "carbohydrates": 45,
+  "fats": 15,
+  "vitamins": 0.1,
+  "minerals": 0.5,
+  "fiber": 8
 }`
       }
     ];
