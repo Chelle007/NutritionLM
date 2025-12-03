@@ -3,6 +3,33 @@ import { NextResponse } from 'next/server'
 // The client you created from the Server-Side Auth instructions
 import { createClient } from '../../utils/supabase/server'
 
+// Helper function to get the proper base URL for redirects
+function getRedirectBaseUrl(request: Request, origin: string): string {
+  const forwardedHost = request.headers.get('x-forwarded-host')
+  const forwardedProto = request.headers.get('x-forwarded-proto') || 'https'
+  const vercelUrl = process.env.VERCEL_URL
+  
+  const isLocalEnv = process.env.NODE_ENV === 'development'
+  
+  if (isLocalEnv) {
+    // Local development - use the origin from the request
+    return origin
+  } else if (forwardedHost) {
+    // Vercel provides x-forwarded-host header in production
+    return `${forwardedProto}://${forwardedHost}`
+  } else if (vercelUrl) {
+    // Fallback to VERCEL_URL environment variable
+    return `https://${vercelUrl}`
+  } else {
+    // Last resort - use origin (might be localhost if incorrectly configured)
+    // Log a warning if origin looks like localhost
+    if (origin.includes('localhost')) {
+      console.warn('Warning: Redirecting to localhost origin. Check VERCEL_URL and x-forwarded-host headers.')
+    }
+    return origin
+  }
+}
+
 export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
@@ -54,20 +81,14 @@ export async function GET(request: Request) {
         }
       }
 
-      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
-      } else {
-        return NextResponse.redirect(`${origin}${next}`)
-      }
+      // Get the proper redirect URL for Vercel production
+      const baseUrl = getRedirectBaseUrl(request, origin)
+      return NextResponse.redirect(`${baseUrl}${next}`)
     }
   }
 
   // return the user to an error page with instructions
-  return NextResponse.redirect(`${origin}/auth/auth-code-error`)
+  const baseUrl = getRedirectBaseUrl(request, origin)
+  return NextResponse.redirect(`${baseUrl}/auth/auth-code-error`)
 }
 // [END]
