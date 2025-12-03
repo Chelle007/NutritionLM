@@ -20,7 +20,7 @@ export default function Header({
 
     return (
         <header 
-            className="h-16 flex items-center justify-between px-3 md:pl-0 md:pr-6 border-b backdrop-blur-sm sticky top-0 z-20 bg-white/80"
+            className="h-16 flex items-center justify-between px-3 md:pl-6 md:pr-6 border-b backdrop-blur-sm sticky top-0 z-20 bg-white/80"
             style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
         >
             <div className="flex items-center gap-2 md:gap-0">
