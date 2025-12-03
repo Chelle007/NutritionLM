@@ -97,8 +97,6 @@ export async function POST(req: NextRequest) {
       let errorMessage = "Failed to upload file";
       if (uploadError.message) {
         errorMessage = uploadError.message;
-      } else if (uploadError.error) {
-        errorMessage = uploadError.error;
       }
       
       // Check for common issues
