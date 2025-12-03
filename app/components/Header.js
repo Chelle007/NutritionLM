@@ -34,13 +34,13 @@ export default function Header({
                 )}
 
                 <div className="flex items-center ml-1 md:ml-0">
-                    <div className="relative w-[140px] h-[36px] md:w-[220px] md:h-[56px]">
+                    <div className="relative w-[130px] h-[50px] md:w-[220px] md:h-[56px]">
                         <Image
                             src="/Nutritionlm.png"
                             alt="NutritionLM logo"
                             fill
                             className="object-contain"
-                            sizes="(max-width: 768px) 140px, 220px"
+                            sizes="(max-width: 768px) 130px, 220px"
                         />
                     </div>
                 </div>
