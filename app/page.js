@@ -46,6 +46,8 @@ export default function NutritionLM() {
     const [isMobile, setIsMobile] = useState(false);
     const [telegramPhotos, setTelegramPhotos] = useState([]);
     const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
+    const [sources, setSources] = useState([]);
+    const [isLoadingSources, setIsLoadingSources] = useState(true);
 
     // Handle responsive detection
     useEffect(() => {
@@ -347,11 +349,80 @@ export default function NutritionLM() {
         window.location.href = `/api/google-fit/auth`;
     }
 
-    const sources = [
-        { id: 1, title: 'My Diet Plan (Nov).docx', type: 'DOC', color: COLOR_SECONDARY_LIGHT, textColor: COLOR_ACCENT_DARK },
-        { id: 2, title: 'Vitamin D Research', type: 'TXT', color: COLOR_SECONDARY_LIGHT, textColor: COLOR_ACCENT_DARK },
-        { id: 3, title: 'My Allergies List', type: 'PDF', color: COLOR_SECONDARY_LIGHT, textColor: COLOR_ACCENT_DARK },
-    ];
+    // Load sources from API
+    useEffect(() => {
+        async function loadSources() {
+            try {
+                const response = await fetch('/api/sources');
+                if (response.ok) {
+                    const data = await response.json();
+                    setSources(data.sources || []);
+                } else {
+                    console.error('Failed to load sources');
+                }
+            } catch (error) {
+                console.error('Error loading sources:', error);
+            } finally {
+                setIsLoadingSources(false);
+            }
+        }
+        loadSources();
+    }, []);
+
+    // Handle source upload
+    const handleSourceUpload = async (file) => {
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('title', file.name);
+
+            const response = await fetch('/api/sources', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (!response.ok) {
+                let errorMessage = 'Failed to upload source';
+                try {
+                    const error = await response.json();
+                    errorMessage = error.error || errorMessage;
+                } catch (parseError) {
+                    // If response is not JSON, use status text
+                    errorMessage = response.statusText || errorMessage;
+                }
+                throw new Error(errorMessage);
+            }
+
+            const data = await response.json();
+            setSources(prev => [data.source, ...prev]);
+        } catch (error) {
+            console.error('Error uploading source:', error);
+            // Re-throw with a more user-friendly message if it's a network error
+            if (error instanceof TypeError && error.message.includes('fetch')) {
+                throw new Error('Network error. Please check your connection and try again.');
+            }
+            throw error;
+        }
+    };
+
+    // Handle source delete
+    const handleSourceDelete = async (sourceId) => {
+        try {
+            const response = await fetch(`/api/sources?id=${sourceId}`, {
+                method: 'DELETE',
+            });
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error || 'Failed to delete source');
+            }
+
+            setSources(prev => prev.filter(s => s.id !== sourceId));
+        } catch (error) {
+            console.error('Error deleting source:', error);
+            throw error;
+        }
+    };
 
     const suggestedPrompts = [
         "Diet plan summary",
@@ -785,6 +856,8 @@ export default function NutritionLM() {
                 telegramPhotos={telegramPhotos}
                 setAttachment={setAttachment}
                 onOpenProfile={() => setIsProfileModalOpen(true)}
+                onSourceUpload={handleSourceUpload}
+                onSourceDelete={handleSourceDelete}
             />
 
             {/* CHAT AREA */}

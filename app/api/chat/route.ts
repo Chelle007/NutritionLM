@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "../../utils/supabase/server";
+import { searchRelevantSources, formatSourcesAsContext } from "../../../services/sourceSearch";
 
 export async function POST(req: NextRequest) {
   try {
@@ -152,10 +153,22 @@ export async function POST(req: NextRequest) {
         `;
     }
 
-    // 4. Combine mode instruction with source instruction
-    systemInstruction = `${modeInstruction}\n\n${sourceInstruction}`;
+    // 4. Search for relevant user sources (RAG)
+    let sourcesContext = '';
+    try {
+      const relevantSources = await searchRelevantSources(user.id, message || '', 5);
+      if (relevantSources && relevantSources.length > 0) {
+        sourcesContext = formatSourcesAsContext(relevantSources);
+      }
+    } catch (sourceError) {
+      console.error("Error searching sources:", sourceError);
+      // Continue without sources if search fails
+    }
 
-    // 5. Retrieve chat history from database
+    // 5. Combine mode instruction with source instruction and user sources context
+    systemInstruction = `${modeInstruction}\n\n${sourceInstruction}${sourcesContext}`;
+
+    // 6. Retrieve chat history from database
     const { data: chatHistory, error: historyError } = await supabase
       .from("chat_messages")
       .select("role, message, image_url")
@@ -167,7 +180,7 @@ export async function POST(req: NextRequest) {
       console.error("Error fetching chat history:", historyError);
     }
 
-    // 6. Build conversation history for Gemini
+    // 7. Build conversation history for Gemini
     const history: any[] = [];
     if (chatHistory && chatHistory.length > 0) {
       // Convert database messages to Gemini format
@@ -189,7 +202,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. Save user message to database
+    // 8. Save user message to database
     let imageUrl = null;
     if (image?.data) {
       // If image is provided, we could upload it to storage, but for now we'll just store the reference
@@ -212,7 +225,7 @@ export async function POST(req: NextRequest) {
       console.error("Error saving user message:", saveUserError);
     }
 
-    // 8. Build current message
+    // 9. Build current message
     const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
     
     const parts = [];
@@ -231,7 +244,7 @@ export async function POST(req: NextRequest) {
 
     parts.push({ text: textMessage });
 
-    // 9. Use chat with history if available, otherwise use generateContent
+    // 10. Use chat with history if available, otherwise use generateContent
     let result;
     if (history.length > 0) {
       const chat = model.startChat({ history: history });
@@ -243,7 +256,7 @@ export async function POST(req: NextRequest) {
     const response = result.response;
     const responseText = response.text();
 
-    // 10. Extract Grounding Metadata (Citations)
+    // 11. Extract Grounding Metadata (Citations)
     // This works for both Compare and Fact Check modes automatically
     let citations: any[] = [];
     if (response.candidates?.[0]?.groundingMetadata) {
@@ -267,7 +280,7 @@ export async function POST(req: NextRequest) {
       console.warn("Fact Check mode: No citations found in grounding metadata. Model may not have used Google Search tool.");
     }
 
-    // 11. Save AI response to database
+    // 12. Save AI response to database
     const metadata: any = {};
     if (citations.length > 0) {
       metadata.citations = citations;

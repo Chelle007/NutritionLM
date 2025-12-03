@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { Sparkles, Menu, X, Plus, FileText, User, Import, ChevronDown, ChevronUp } from 'lucide-react';
+import { Sparkles, Menu, X, Plus, FileText, User, Import, ChevronDown, ChevronUp, Trash2 } from 'lucide-react';
 import { createBrowserClient } from "@supabase/ssr";
 import {
     COLOR_SECONDARY_LIGHT,
@@ -18,10 +18,15 @@ export default function Sidebar({
     sources = [],
     telegramPhotos = [],
     setAttachment = { setAttachment },
-    onOpenProfile
+    onOpenProfile,
+    onSourceUpload,
+    onSourceDelete
 }) {
     const [userFullName, setUserFullName] = useState('User');
-    const [isExpanded, setIsExpanded] = useState(false); 
+    const [isExpanded, setIsExpanded] = useState(false);
+    const [isUploading, setIsUploading] = useState(false);
+    const [deletingId, setDeletingId] = useState(null);
+    const fileInputRef = useRef(null); 
 
     async function urlToFile(url) {
         const response = await fetch(url);
@@ -51,6 +56,74 @@ export default function Sidebar({
         }
         loadUser();
     }, []);
+
+    const handleFileSelect = async (e) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        // Validate file type
+        const fileExtension = file.name.split('.').pop()?.toUpperCase() || '';
+        const allowedTypes = ['PDF', 'DOCX', 'DOC', 'TXT', 'TEXT'];
+        if (!allowedTypes.includes(fileExtension)) {
+            alert(`File type not supported. Allowed types: ${allowedTypes.join(', ')}`);
+            return;
+        }
+
+        // Validate file size (max 10MB)
+        if (file.size > 10 * 1024 * 1024) {
+            alert('File size exceeds 10MB limit');
+            return;
+        }
+
+        setIsUploading(true);
+        try {
+            if (onSourceUpload) {
+                await onSourceUpload(file);
+            }
+        } catch (error) {
+            console.error('Error uploading source:', error);
+            const errorMessage = error?.message || 'Failed to upload source. Please try again.';
+            alert(errorMessage);
+        } finally {
+            setIsUploading(false);
+            // Reset file input
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+        }
+    };
+
+    const handleDeleteSource = async (sourceId, e) => {
+        e.stopPropagation(); // Prevent any parent click handlers
+        
+        if (!confirm('Are you sure you want to delete this source?')) {
+            return;
+        }
+
+        setDeletingId(sourceId);
+        try {
+            if (onSourceDelete) {
+                await onSourceDelete(sourceId);
+            }
+        } catch (error) {
+            console.error('Error deleting source:', error);
+            alert('Failed to delete source. Please try again.');
+        } finally {
+            setDeletingId(null);
+        }
+    };
+
+    const formatDate = (dateString) => {
+        const date = new Date(dateString);
+        const now = new Date();
+        const diffTime = Math.abs(now - date);
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        if (diffDays === 1) return 'Added today';
+        if (diffDays === 2) return 'Added yesterday';
+        if (diffDays <= 7) return `Added ${diffDays} days ago`;
+        return date.toLocaleDateString();
+    };
 
     return (
         <>
@@ -179,26 +252,66 @@ export default function Sidebar({
                             <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-400">
                                 Sources ({sources.length})
                             </h2>
-                            <button className="text-gray-400 hover:text-white">
-                                <Plus className="w-4 h-4" />
+                            <button 
+                                onClick={() => fileInputRef.current?.click()}
+                                disabled={isUploading}
+                                className="text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"
+                                title="Upload source"
+                            >
+                                {isUploading ? (
+                                    <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                                ) : (
+                                    <Plus className="w-4 h-4" />
+                                )}
                             </button>
+                            <input
+                                ref={fileInputRef}
+                                type="file"
+                                accept=".pdf,.docx,.doc,.txt"
+                                onChange={handleFileSelect}
+                                className="hidden"
+                            />
                         </div>
 
                         <div className="space-y-3">
-                            {sources.map((source) => (
-                                <div key={source.id} className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-shadow cursor-pointer">
-                                    <div className="flex items-start gap-3">
-                                        <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-                                            style={{ backgroundColor: source.color, color: source.textColor }}>
-                                            <FileText className="w-4 h-4" />
-                                        </div>
-                                        <div className="flex-1 min-w-0">
-                                            <h3 className="text-sm font-medium truncate">{source.title}</h3>
-                                            <p className="text-xs text-gray-500 mt-0.5">{source.type} • Added today</p>
+                            {sources.length === 0 ? (
+                                <div className="text-center py-6 text-gray-400 text-sm">
+                                    No sources uploaded yet.<br />
+                                    Click the + button to upload.
+                                </div>
+                            ) : (
+                                sources.map((source) => (
+                                    <div 
+                                        key={source.id} 
+                                        className="group relative bg-white border rounded-xl p-3 hover:shadow-md transition-shadow"
+                                    >
+                                        <div className="flex items-start gap-3">
+                                            <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
+                                                style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
+                                                <FileText className="w-4 h-4" />
+                                            </div>
+                                            <div className="flex-1 min-w-0">
+                                                <h3 className="text-sm font-medium truncate">{source.title || source.file_name}</h3>
+                                                <p className="text-xs text-gray-500 mt-0.5">
+                                                    {source.file_type} • {formatDate(source.created_at)}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={(e) => handleDeleteSource(source.id, e)}
+                                                disabled={deletingId === source.id}
+                                                className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-50 rounded text-gray-400 hover:text-red-600 transition-all disabled:opacity-50"
+                                                title="Delete source"
+                                            >
+                                                {deletingId === source.id ? (
+                                                    <div className="w-3.5 h-3.5 border-2 border-red-400 border-t-transparent rounded-full animate-spin" />
+                                                ) : (
+                                                    <Trash2 className="w-3.5 h-3.5" />
+                                                )}
+                                            </button>
                                         </div>
                                     </div>
-                                </div>
-                            ))}
+                                ))
+                            )}
                         </div>
 
                     </div>
