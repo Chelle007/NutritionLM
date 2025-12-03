@@ -58,21 +58,7 @@ export default function Sidebar({
                     pointerEvents: isMobile && !isSidebarOpen ? 'none' : 'auto'
                 }}
             >
-                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-between'} items-center ${isMobile ? 'px-4' : (isSidebarOpen ? 'pl-6 pr-4' : 'px-4')} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
-                    {(!isMobile && !isSidebarOpen) ? null : (
-                        <div className="flex items-center gap-3 whitespace-nowrap">
-                            {/* Logo for the application*/}
-                            <div className="relative" style={{ width: isSidebarOpen ? "250px" : "40px", height: "100px" }}>
-                                <Image
-                                    src="/Nutritionlm.png"
-                                    alt="NutritionLM logo"
-                                    fill
-                                    className="object-contain"
-                                    sizes="150px"
-                                />
-                            </div>
-                        </div>
-                    )}
+                <div className={`h-16 flex ${!isMobile && !isSidebarOpen ? 'justify-center' : 'justify-end'} items-center ${isMobile ? 'px-4' : (isSidebarOpen ? 'pl-6 pr-4' : 'px-4')} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`}>
                     {isMobile ? (
                         <button 
                             onClick={() => setIsSidebarOpen(false)}
@@ -176,7 +162,7 @@ export default function Sidebar({
                     </div>
                 </div>
                 
-                <div className={`p-4 border-t ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`} style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
+                <div className={`p-4 ${(isMobile || isSidebarOpen) ? 'border-t' : ''} ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-100')}`} style={(isMobile || isSidebarOpen) ? { borderColor: 'rgba(255, 255, 255, 0.1)' } : {}}>
                     <button 
                         onClick={() => {
                             if (onOpenProfile) {
@@ -186,7 +172,7 @@ export default function Sidebar({
                                 setIsSidebarOpen(false);
                             }
                         }}
-                        className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors w-full text-left"
+                        className={`flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors w-full ${!isMobile && !isSidebarOpen ? 'justify-center' : 'text-left'}`}
                     >
                         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
                             <User className="w-4 h-4" style={{ color: COLOR_ACCENT_DARK }} />
