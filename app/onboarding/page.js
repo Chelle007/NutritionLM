@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import {
   ArrowRight,
@@ -76,7 +76,7 @@ const isValidBirthDate = (date) => {
   return !Number.isNaN(d.getTime());
 };
 
-export default function GetToKnowYouPage() {
+function GetToKnowYouPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -611,5 +611,21 @@ export default function GetToKnowYouPage() {
         <div className="relative">{renderStepContent()}</div>
       </div>
     </main>
+  );
+}
+
+export default function GetToKnowYouPage() {
+  return (
+    <Suspense fallback={
+      <main className="min-h-screen flex items-center justify-center bg-[#F8F8F8] px-4">
+        <div className="w-full max-w-2xl rounded-3xl shadow-2xl p-10 overflow-hidden bg-[#C8E6C9]">
+          <div className="flex items-center justify-center">
+            <p className="text-lg animate-pulse" style={{ color: "#34495E" }}>Loading...</p>
+          </div>
+        </div>
+      </main>
+    }>
+      <GetToKnowYouPageContent />
+    </Suspense>
   );
 }
