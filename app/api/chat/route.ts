@@ -1,11 +1,20 @@
 // [START] documentation reference: https://ai.google.dev/gemini-api/docs/models | https://ai.google.dev/gemini-api/docs
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
+import { createClient } from "../../utils/supabase/server";
 
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) throw new Error("Missing API Key");
+
+    // Get authenticated user
+    const supabase = await createClient();
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+
+    if (authError || !user) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { message, image, factCheck, compare } = await req.json();
     
@@ -146,9 +155,66 @@ export async function POST(req: NextRequest) {
     // 4. Combine mode instruction with source instruction
     systemInstruction = `${modeInstruction}\n\n${sourceInstruction}`;
 
-    const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
+    // 5. Retrieve chat history from database
+    const { data: chatHistory, error: historyError } = await supabase
+      .from("chat_messages")
+      .select("role, message, image_url")
+      .eq("user_id", user.id)
+      .order("created_at", { ascending: true })
+      .limit(50); // Limit to last 50 messages to avoid token limits
 
-    // 5. Build Prompt
+    if (historyError) {
+      console.error("Error fetching chat history:", historyError);
+    }
+
+    // 6. Build conversation history for Gemini
+    const history: any[] = [];
+    if (chatHistory && chatHistory.length > 0) {
+      // Convert database messages to Gemini format
+      for (const msg of chatHistory) {
+        const parts: any[] = [];
+        if (msg.image_url) {
+          // Note: We can't include image URLs in history, only base64
+          // For now, we'll skip images in history
+        }
+        if (msg.message) {
+          parts.push({ text: msg.message });
+        }
+        if (parts.length > 0) {
+          history.push({
+            role: msg.role === "user" ? "user" : "model",
+            parts: parts
+          });
+        }
+      }
+    }
+
+    // 7. Save user message to database
+    let imageUrl = null;
+    if (image?.data) {
+      // If image is provided, we could upload it to storage, but for now we'll just store the reference
+      // The image data is base64, so we'll store a flag that image was included
+      imageUrl = "base64_included";
+    }
+
+    const userMessageText = message || (image ? "Analyze this image" : "");
+    
+    const { error: saveUserError } = await supabase
+      .from("chat_messages")
+      .insert({
+        user_id: user.id,
+        role: "user",
+        message: userMessageText,
+        image_url: imageUrl,
+      });
+
+    if (saveUserError) {
+      console.error("Error saving user message:", saveUserError);
+    }
+
+    // 8. Build current message
+    const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
+    
     const parts = [];
     if (image?.data) {
         parts.push({ inlineData: { mimeType: image.mimeType, data: image.data }});
@@ -165,11 +231,19 @@ export async function POST(req: NextRequest) {
 
     parts.push({ text: textMessage });
 
-    const result = await model.generateContent(parts);
+    // 9. Use chat with history if available, otherwise use generateContent
+    let result;
+    if (history.length > 0) {
+      const chat = model.startChat({ history: history });
+      result = await chat.sendMessage(parts);
+    } else {
+      result = await model.generateContent(parts);
+    }
+    
     const response = result.response;
     const responseText = response.text();
 
-    // 6. Extract Grounding Metadata (Citations)
+    // 10. Extract Grounding Metadata (Citations)
     // This works for both Compare and Fact Check modes automatically
     let citations: any[] = [];
     if (response.candidates?.[0]?.groundingMetadata) {
@@ -191,6 +265,31 @@ export async function POST(req: NextRequest) {
     // Log if citations are missing in fact check mode (for debugging)
     if (factCheck && citations.length === 0) {
       console.warn("Fact Check mode: No citations found in grounding metadata. Model may not have used Google Search tool.");
+    }
+
+    // 11. Save AI response to database
+    const metadata: any = {};
+    if (citations.length > 0) {
+      metadata.citations = citations;
+    }
+    if (compare) {
+      metadata.isComparison = true;
+    }
+    if (factCheck) {
+      metadata.isFactCheck = true;
+    }
+
+    const { error: saveAIError } = await supabase
+      .from("chat_messages")
+      .insert({
+        user_id: user.id,
+        role: "ai",
+        message: responseText,
+        metadata: metadata,
+      });
+
+    if (saveAIError) {
+      console.error("Error saving AI message:", saveAIError);
     }
 
     return NextResponse.json({ 
