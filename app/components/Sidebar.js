@@ -21,6 +21,12 @@ export default function Sidebar({
 }) {
     const [userFullName, setUserFullName] = useState('User');
 
+    async function urlToFile(url) {
+        const response = await fetch(url);
+        const blob = await response.blob();
+        return new File([blob], "telegram-photo.jpg", { type: blob.type });
+    }
+
     useEffect(() => {
         async function loadUser() {
             const supabase = createBrowserClient(
@@ -131,7 +137,10 @@ export default function Sidebar({
                                     <div 
                                         key={index} 
                                         className="bg-white/10 rounded-lg overflow-hidden cursor-pointer hover:bg-white/20 transition"
-                                        onClick={() => setAttachment({ file: null, preview: photo.url })}
+                                        onClick={async () => {
+                                            const file = await urlToFile(photo.url);   
+                                            setAttachment({ file, preview: photo.url }); 
+                                        }}
                                     >
                                         <img src={photo.url} className="w-full h-24 object-cover" />
                                     </div>
