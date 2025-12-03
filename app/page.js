@@ -441,6 +441,79 @@ export default function NutritionLM() {
         }
     };
 
+    const logFood = async (attachmentData) => {
+        try {
+            if (!attachmentData?.file) {
+                throw new Error("Please attach an image to log food.");
+            }
+
+            // Stage 1: Uploading image
+            setScanProgress({ stage: 1, message: 'Uploading image...' });
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Stage 2: Scanning ingredients
+            setScanProgress({ stage: 2, message: 'Scanning ingredients...' });
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Stage 3: Analyzing nutrition
+            setScanProgress({ stage: 3, message: 'Analyzing nutrition...' });
+            await new Promise(resolve => setTimeout(resolve, 300));
+
+            // Stage 4: Saving to database
+            setScanProgress({ stage: 4, message: 'Saving food log...' });
+
+            const formData = new FormData();
+            formData.append("image", attachmentData.file);
+
+            const response = await fetch("/api/food-log", {
+                method: "POST",
+                body: formData,
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || "Failed to log food");
+            }
+
+            // Stop scanning and thinking
+            setIsScanning(false);
+            setIsThinking(false);
+            setScanProgress({ stage: 0, message: '' });
+
+            const successMessage = {
+                id: Date.now() + 1,
+                role: 'ai',
+                text: `✅ **Food logged successfully!**\n\n**Food:** ${data.foodName}\n\n**Ingredients:** ${data.ingredients.join(', ')}\n\n**Nutrition:**\n${Object.entries(data.nutrition).map(([key, value]) => `- ${key}: ${value}`).join('\n')}`,
+                nutritionData: data.nutrition,
+                nutritionImage: attachmentData?.preview || null,
+                showScanAnimation: true,
+            };
+            setMessages(prev => [...prev, successMessage]);
+
+            // Hide scanning animation on image after 2 seconds
+            setTimeout(() => {
+                setMessages(prev => prev.map(msg => 
+                    msg.id === successMessage.id 
+                        ? { ...msg, showScanAnimation: false }
+                        : msg
+                ));
+            }, 2000);
+        } catch (error) {
+            setMessages(prev => [
+                ...prev,
+                {
+                    id: Date.now() + 2,
+                    role: 'ai',
+                    text: `❌ Failed to log food: ${error.message}`,
+                },
+            ]);
+            setIsScanning(false);
+            setIsThinking(false);
+            setScanProgress({ stage: 0, message: '' });
+        }
+    };
+
     const extractFirstJson = (text) => {
         const startIndex = text.indexOf('{');
         if (startIndex === -1) return null;
@@ -471,6 +544,7 @@ export default function NutritionLM() {
         if ((!input.trim() && !attachment) || isThinking) return;
 
         const isNutritionMode = activeButton === 'nutrition';
+        const isLogFoodMode = activeButton === 'logFood';
 
         const currentInput = input;
         const currentAttachment = attachment;
@@ -497,6 +571,24 @@ export default function NutritionLM() {
                 await runNutritionCheck(currentInput, currentAttachment);
             } finally {
                 // Clean up scanning state (already stopped in runNutritionCheck, but ensure cleanup)
+                setIsThinking(false);
+                setIsScanning(false);
+                setScanningAttachment(null);
+                setScanProgress({ stage: 0, message: '' });
+                setActiveButton(null);
+            }
+            return;
+        }
+
+        if (isLogFoodMode) {
+            try {
+                setIsThinking(true);
+                setIsScanning(true);
+                setScanningAttachment(currentAttachment); // Store attachment for scanning animation
+                setScanProgress({ stage: 0, message: 'Initializing food log...' });
+                await logFood(currentAttachment);
+            } finally {
+                // Clean up scanning state (already stopped in logFood, but ensure cleanup)
                 setIsThinking(false);
                 setIsScanning(false);
                 setScanningAttachment(null);
