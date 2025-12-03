@@ -65,7 +65,6 @@ export async function POST(req: NextRequest) {
       * **Eating Disorders:** If the user exhibits signs of an eating disorder (extreme restriction, purging), provide a supportive, non-judgmental refusal to assist with weight loss and suggest professional help.
     `;
 
-    // 3. Mode-specific instructions
     let modeInstruction = "";
     let systemInstruction = "";
 
