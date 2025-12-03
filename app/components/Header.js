@@ -52,7 +52,7 @@ export default function Header({
                         className="hidden md:flex px-2 md:px-3 py-1 text-xs md:text-sm text-white rounded-full font-medium cursor-default opacity-90"
                         style={{ backgroundColor: "#4CAF50" }}
                     >
-                        <span className="hidden sm:inline">Telegram Connected </span>✓
+                        <span className="hidden sm:inline">Telegram Connected ✓</span>
                     </span>
                 ) : (
                     <button
@@ -62,7 +62,7 @@ export default function Header({
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#0077B5'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = '#0088CC'}
                     >
-                        <span className="hidden sm:inline">Manage </span>Telegram
+                        <span className="hidden sm:inline">Manage Telegram</span>
                     </button>
                 )}
 
@@ -77,7 +77,7 @@ export default function Header({
                         }}
                     >
                         <CheckCircle className="w-3 h-3 md:w-4 md:h-4" style={{ color: '#4CAF50' }} />
-                        <span className="hidden sm:inline">Google Fit </span>Connected
+                        <span className="hidden sm:inline">Google Fit Connected</span>
                     </div>
                 ) : (
                     <button
@@ -87,7 +87,7 @@ export default function Header({
                         onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#1E8E7E'}
                         onMouseLeave={(e) => e.currentTarget.style.backgroundColor = COLOR_FACT_CHECK}
                     >
-                        <span className="hidden sm:inline">Connect </span>Fit
+                        <span className="hidden sm:inline">Connect Fit</span>
                     </button>
                 )}
 
