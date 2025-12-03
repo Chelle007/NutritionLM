@@ -142,7 +142,7 @@ export async function POST(req: NextRequest) {
 
     const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
 
-    // 3. Build Prompt
+    // 5. Build Prompt
     const parts = [];
     if (image?.data) {
         parts.push({ inlineData: { mimeType: image.mimeType, data: image.data }});
@@ -163,7 +163,7 @@ export async function POST(req: NextRequest) {
     const response = result.response;
     const responseText = response.text();
 
-    // 4. Extract Grounding Metadata (Citations)
+    // 6. Extract Grounding Metadata (Citations)
     // This works for both Compare and Fact Check modes automatically
     let citations: any[] = [];
     if (response.candidates?.[0]?.groundingMetadata) {
