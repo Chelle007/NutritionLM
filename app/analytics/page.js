@@ -11,6 +11,59 @@ import {
     COLOR_CONTENT_BG 
 } from '../constants/colors';
 
+//BMI-based recommended nutrition targets for the users
+const getRecommendedNutrition = (bmiCategory) => {
+    switch (bmiCategory) {
+        case 'Underweight':
+            return [
+                { key: 'carbs',   label: 'Carbohydrate', target: 280, unit: 'g' },
+                { key: 'protein', label: 'Protein',      target: 80,  unit: 'g' },
+                { key: 'fats',    label: 'Fats',         target: 75,  unit: 'g' },
+            ];
+        case 'Normal':
+            return [
+                { key: 'carbs',   label: 'Carbohydrate', target: 230, unit: 'g' },
+                { key: 'protein', label: 'Protein',      target: 70,  unit: 'g' },
+                { key: 'fats',    label: 'Fats',         target: 65,  unit: 'g' },
+            ];
+        case 'Overweight':
+            return [
+                { key: 'carbs',   label: 'Carbohydrate', target: 180, unit: 'g' },
+                { key: 'protein', label: 'Protein',      target: 90,  unit: 'g' },
+                { key: 'fats',    label: 'Fats',         target: 55,  unit: 'g' },
+            ];
+        case 'Obese':
+            return [
+                { key: 'carbs',   label: 'Carbohydrate', target: 160, unit: 'g' },
+                { key: 'protein', label: 'Protein',      target: 100, unit: 'g' },
+                { key: 'fats',    label: 'Fats',         target: 50,  unit: 'g' },
+            ];
+        default:
+            //In case no BMI yet, it will provide general recommnedation
+            return [
+                { key: 'carbs',   label: 'Carbohydrate', target: 220, unit: 'g' },
+                { key: 'protein', label: 'Protein',      target: 75,  unit: 'g' },
+                { key: 'fats',    label: 'Fats',         target: 60,  unit: 'g' },
+            ];
+    }
+};
+
+// Apply BMI category color
+const getBmiColor = (category) => {
+    switch (category) {
+        case "Normal":
+            return "text-green-500";
+        case "Underweight":
+            return "text-orange-500";
+        case "Overweight":
+        case "Obese":
+            return "text-red-500";
+        default:
+            return "text-gray-500";
+    }
+};
+
+
 export default function AnalyticsPage() {
     const router = useRouter();
     const [loading, setLoading] = useState(true);
@@ -20,6 +73,69 @@ export default function AnalyticsPage() {
     const [totalLogs, setTotalLogs] = useState(0);
     const [mostRecentHealthLevel, setMostRecentHealthLevel] = useState(null);
     const [achievements, setAchievements] = useState([]);
+    const [bmi, setBmi] = useState(null);
+    const [bmiCategory, setBmiCategory] = useState(null);
+    const [loggedNutrition, setLoggedNutrition] = useState({
+        carbs: 0,
+        protein: 0,
+        fats: 0,
+    });
+    const [heightCm, setHeightCm] = useState(null);
+    const [weightKg, setWeightKg] = useState(null);
+
+
+    // Recommended nutrition based on BMI category
+    const recommendedNutrition = getRecommendedNutrition(bmiCategory);
+    const isOverweightOrObese = bmiCategory === 'Overweight' || bmiCategory === 'Obese';
+
+    // Add progress information for each nutrient
+    const nutritionProgress = recommendedNutrition.map((nutrient) => {
+        const target = nutrient.target;
+        const actual = Number(loggedNutrition[nutrient.key] ?? 0);
+        const percent =
+            target > 0 ? (actual / target) * 100 : 0;
+
+        return {
+            ...nutrient,
+            target,
+            actual,
+            percent,
+        };
+    });
+
+    // Overall % (average, capped at 100 for the ring)
+    const overallPercent =
+        nutritionProgress.length > 0
+            ? Math.round(
+                nutritionProgress.reduce(
+                    (sum, n) => sum + Math.min(n.percent, 100),
+                    0
+                ) / nutritionProgress.length
+            )
+            : 0;
+
+    // Overall hit/over status
+    const allHit =
+        nutritionProgress.length > 0 &&
+        nutritionProgress.every((n) => n.actual >= n.target);
+
+    const anyOverTarget = nutritionProgress.some((n) => n.actual > n.target);
+
+    // Overall status text + colour (for bottom "Status" row)
+    let overallText = '';
+    let overallClass = '';
+
+    if (isOverweightOrObese && anyOverTarget) {
+        overallText = "Oh no you're doomed!";
+        overallClass = 'text-red-500';
+    } else if (allHit) {
+        overallText = 'You are getting healthier!';
+        overallClass = 'text-green-500';
+    } else {
+        overallText = 'Remember, some nutrients are still below target.';
+        overallClass = 'text-red-400';
+    }
+
 
     useEffect(() => {
         async function fetchAnalytics() {
@@ -35,12 +151,11 @@ export default function AnalyticsPage() {
                     return;
                 }
 
+                // Existing analytics API
                 const response = await fetch('/api/analytics');
-
                 if (!response.ok) {
                     throw new Error('Failed to fetch analytics');
                 }
-
                 const data = await response.json();
                 setGraphData(data.graphData || []);
                 setFoodLogStreak(data.foodLogStreak || 0);
@@ -48,13 +163,53 @@ export default function AnalyticsPage() {
                 setTotalLogs(data.totalLogs || 0);
                 setMostRecentHealthLevel(data.mostRecentHealthLevel);
                 setAchievements(data.achievements || []);
-            } catch (error) {
-                console.error('Error fetching analytics:', error);
-            } finally {
-                setLoading(false);
-            }
-        }
+                setLoggedNutrition({
+                    carbs: Number(data.loggedCarbohydrates ?? 0), 
+                    protein: Number(data.loggedProtein ?? 0),
+                    fats: Number(data.loggedFats ?? 0),
+                });
 
+
+                //Fetch BMI / compute from height & weight
+                const { data: profile, error: profileError } = await supabase
+                    .from('user_preferences') 
+                    .select('weight_kg, height_cm')
+                    .eq('user_id', user.id)
+                    .single();
+
+                    if (profileError) {
+                    console.error(
+                        'Error fetching profile for BMI:',
+                        profileError.message || profileError
+                    );
+                    } else if (profile && profile.height_cm && profile.weight_kg) {
+                    const heightCM = Number(profile.height_cm) / 100;
+                    const weightKg = Number(profile.weight_kg);
+
+                    setHeightCm(profile.height_cm);
+                    setWeightKg(profile.weight_kg);
+
+                    if (heightCM > 0 && weightKg > 0) {
+                        const computedBmi = weightKg / (heightCM * heightCM);
+                        const rounded = Number(computedBmi.toFixed(1));
+                        setBmi(rounded);
+
+                        // BMI category logic
+                        let category;
+                        if (rounded < 18.5)       category = 'Underweight';
+                        else if (rounded < 23)    category = 'Normal';
+                        else if (rounded < 27.5)  category = 'Overweight';
+                        else                      category = 'Obese';
+
+                        setBmiCategory(category);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching analytics:', error);
+                } finally {
+                    setLoading(false);
+                }
+        }
         fetchAnalytics();
     }, [router]);
 
@@ -63,6 +218,10 @@ export default function AnalyticsPage() {
     const graphHeight = 200;
     const barWidth = 8;
     const barSpacing = 4;
+    // Show at most ~6 date labels on the x-axis
+    const labelEvery = graphData.length > 0 ? Math.ceil(graphData.length / 6) : 1;
+
+
 
     const formatDate = (dateStr) => {
         const date = new Date(dateStr);
@@ -177,83 +336,259 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
 
-                        {/* Analytics Graph */}
-                        <div className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow" style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}>
-                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 md:mb-6">
+                        {/* Nutrition Activity – SECOND CARD */}
+                        <div
+                            className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow"
+                            style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
+                        >
+                            {/* Header */}
+                            <div className="flex items-center justify-between mb-3 md:mb-4">
                                 <div>
                                     <h2 className="text-base md:text-lg font-bold" style={{ color: COLOR_ACCENT_DARK }}>
-                                        Food Logs (Last 30 Days)
+                                        Nutrition Activity
                                     </h2>
                                     <p className="text-xs md:text-sm text-gray-500 mt-1">
-                                        {totalLogs} total logs recorded
+                                        Carbohydrate, Protein &amp; Fats vs Your Daily Targets.
                                     </p>
                                 </div>
-                                <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
-                                    <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
-                                    <span>Activity</span>
+                                <div className="flex flex-col items-end gap-1 text-[11px] md:text-xs text-gray-600">
+                                    <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200">
+                                        {heightCm && weightKg
+                                            ? `Ht: ${heightCm} cm · Wt: ${weightKg} kg`
+                                            : 'Set your height & weight'}
+                                    </span>
                                 </div>
                             </div>
 
-                            {/* Graph */}
-                            <div className="overflow-x-auto pb-4">
-                                <svg
-                                    width="100%"
-                                    height={graphHeight + 60}
-                                    viewBox={`0 0 ${graphData.length * (barWidth + barSpacing) + 20} ${graphHeight + 60}`}
-                                    className="min-w-full"
-                                >
-                                    {/* Bars */}
-                                    {graphData.map((data, index) => {
-                                        const barHeight = maxCount > 0 ? (data.count / maxCount) * graphHeight : 0;
-                                        const x = index * (barWidth + barSpacing) + 10;
-                                        const y = graphHeight - barHeight;
-                                        
+                            {/* Main content: left list + right ring */}
+                            <div className="flex flex-col md:flex-row gap-6 items-stretch">
+                                {/* Left side: Carbs / Protein / Fats */}
+                                <div className="flex-1 space-y-3">
+                                    {nutritionProgress.map((nutrient) => {
+                                        const colorClass =
+                                            nutrient.key === 'carbs'
+                                                ? 'text-rose-500'   // red
+                                                : nutrient.key === 'protein'
+                                                ? 'text-green-500' // green
+                                                : 'text-sky-500';  // blue
+
+                                        let perNutrientMessage = '';
+                                        if (isOverweightOrObese && nutrient.actual > nutrient.target) {
+                                            perNutrientMessage = "Oh no, you ate too much!";
+                                        } else if (nutrient.actual >= nutrient.target) {
+                                            perNutrientMessage = 'Steady, you\'re on target';
+                                        } else {
+                                            perNutrientMessage = 'Jiayou, eat more!';
+                                        }
+
                                         return (
-                                            <g key={data.date}>
-                                                {/* Bar */}
-                                                <rect
-                                                    x={x}
-                                                    y={y}
-                                                    width={barWidth}
-                                                    height={barHeight}
-                                                    fill={data.count > 0 ? COLOR_PRIMARY : '#E5E7EB'}
-                                                    rx={4}
-                                                    className="transition-all hover:opacity-80"
-                                                />
-                                                {/* Date label (show every 5th day to avoid crowding) */}
-                                                {index % 5 === 0 && (
-                                                    <text
-                                                        x={x + barWidth / 2}
-                                                        y={graphHeight + 20}
-                                                        textAnchor="middle"
-                                                        className="text-xs fill-gray-600"
-                                                        fontSize="10"
-                                                    >
-                                                        {formatDate(data.date)}
-                                                    </text>
-                                                )}
-                                                {/* Tooltip on hover */}
-                                                <title>
-                                                    {formatDate(data.date)}: {data.count} {data.count === 1 ? 'log' : 'logs'}
-                                                </title>
-                                            </g>
+                                            <div key={nutrient.key} className="space-y-0.5">
+                                                <div className="flex items-baseline justify-between">
+                                                    <span className="text-xs md:text-sm font-semibold text-gray-800">
+                                                        {/* bold nutrient name */}
+                                                        {nutrient.label}
+                                                    </span>
+                                                    <span className={`text-lg md:text-xl font-semibold ${colorClass}`}>
+                                                        {nutrient.actual.toFixed(1)}/{nutrient.target}
+                                                        {nutrient.unit}
+                                                    </span>
+                                                </div>
+                                                <div className="flex items-center justify-between text-[11px] md:text-xs text-gray-500">
+                                                    <span>{perNutrientMessage}</span>
+                                                    <span>
+                                                        {Math.round(Math.min(nutrient.percent, 200))}%
+                                                    </span>
+                                                </div>
+                                            </div>
                                         );
                                     })}
-                                </svg>
+                                </div>
+
+                                {/* Right side: overall circular ring */}
+                                <div className="flex items-center justify-center md:w-40">
+                                    <div className="relative w-28 h-28 md:w-32 md:h-32">
+                                        {/* Outer ring */}
+                                        <div
+                                            className="absolute inset-0 rounded-full"
+                                            style={{
+                                                background: `conic-gradient(#22c55e 0deg, #22c55e ${
+                                                    overallPercent * 3.6
+                                                }deg, #e5e7eb ${overallPercent * 3.6}deg 360deg)`,
+                                            }}
+                                        />
+                                        {/* Inner cut-out */}
+                                        <div className="absolute inset-4 bg-white rounded-full" />
+                                        {/* Center text */}
+                                        <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                            <span className="text-[10px] uppercase tracking-wide text-gray-500">
+                                                Overall
+                                            </span>
+                                            <span className="text-xl font-semibold text-gray-800">
+                                                {overallPercent}%
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
 
-                            {/* Legend */}
-                            <div className="flex flex-wrap items-center gap-3 md:gap-4 mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 md:w-4 md:h-4 rounded" style={{ backgroundColor: COLOR_PRIMARY }}></div>
-                                    <span className="text-xs text-gray-600">Days with logs</span>
+                            {/* Bottom row: Status & BMI */}
+                            <div className="mt-4 pt-3 border-t border-gray-200 flex items-center justify-between text-xs md:text-sm">
+                                <div>
+                                    <p className="text-gray-500">Status</p>
+                                    <p className={`font-semibold ${getBmiColor(bmiCategory)}`}>
+                                        {bmiCategory ? bmiCategory : 'Not set yet'}
+                                    </p>
+                                    {bmiCategory && (
+                                        <p className="text-[11px] md:text-xs text-gray-500 mt-0.5">
+                                            {overallText}
+                                        </p>
+                                    )}
                                 </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-3 h-3 md:w-4 md:h-4 rounded bg-gray-200"></div>
-                                    <span className="text-xs text-gray-600">No logs</span>
+                                <div className="text-right">
+                                    <p className="text-gray-500">BMI</p>
+                                    <p className="font-semibold text-gray-800">
+                                        {bmi ? `${bmi} (${bmiCategory || 'Unknown'})` : 'Not set yet'}
+                                    </p>
                                 </div>
                             </div>
                         </div>
+
+
+                     {/* Analytics Graph */}
+                        <div
+                        className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow"
+                        style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
+                        >
+                        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 md:mb-6">
+                            <div>
+                            <h2 className="text-base md:text-lg font-bold" style={{ color: COLOR_ACCENT_DARK }}>
+                                Food Logs (30 days)
+                            </h2>
+                            <p className="text-xs md:text-sm text-gray-500 mt-1">
+                                {totalLogs} total logs recorded
+                                {graphData.length > 0 && (
+                                <>
+                                    {' · From '}
+                                    {formatDate(graphData[0].date)}
+                                </>
+                                )}
+                            </p>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
+                            <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
+                            <span>Activity</span>
+                            </div>
+                        </div>
+
+                        {/* Bar Chart – covers full activity window */}
+                        <div className="overflow-x-auto pb-4">
+                            <svg
+                            width="100%"
+                            height={graphHeight + 60}
+                            viewBox={`0 0 ${graphData.length * (barWidth + barSpacing) + 20} ${graphHeight + 60}`}
+                            className="min-w-full"
+                            >
+                            {/* X-Axis baseline */}
+                            <line
+                                x1="10"
+                                y1={graphHeight + 10}
+                                x2={graphData.length * (barWidth + barSpacing) + 10}
+                                y2={graphHeight + 10}
+                                stroke="#E5E7EB"
+                                strokeWidth="1"
+                            />
+
+                            {/* Optional top guide for maxCount */}
+                            {maxCount > 1 && (
+                                <>
+                                <line
+                                    x1="10"
+                                    y1="10"
+                                    x2={graphData.length * (barWidth + barSpacing) + 10}
+                                    y2="10"
+                                    stroke="#E5E7EB"
+                                    strokeDasharray="3 3"
+                                    strokeWidth="0.5"
+                                />
+                                <text
+                                    x="5"
+                                    y="15"
+                                    className="text-xs fill-gray-400"
+                                    fontSize="10"
+                                    textAnchor="end"
+                                >
+                                    {maxCount}
+                                </text>
+                                </>
+                            )}
+
+                            {/* Bars */}
+                            {graphData.map((data, index) => {
+                                const normalizedHeight =
+                                maxCount > 0 ? (data.count / maxCount) * graphHeight : 0;
+
+                                // Ensure zero days still show a small "no logs" bar
+                                const hasLogs = data.count > 0;
+                                const barHeight = hasLogs ? Math.max(normalizedHeight, 4) : 4;
+                                const x = 10 + index * (barWidth + barSpacing);
+                                const y = graphHeight + 10 - barHeight;
+
+                                const barFill = hasLogs ? COLOR_PRIMARY : '#E5E7EB';
+
+                                const showLabel = index % labelEvery === 0;
+
+                                return (
+                                <g key={data.date}>
+                                    {/* Bar */}
+                                    <rect
+                                    x={x}
+                                    y={y}
+                                    width={barWidth}
+                                    height={barHeight}
+                                    rx={2}
+                                    fill={barFill}
+                                    className="transition-all hover:opacity-80 cursor-pointer"
+                                    >
+                                    <title>
+                                        {formatDate(data.date)}: {data.count}{' '}
+                                        {data.count === 1 ? 'log' : 'logs'}
+                                    </title>
+                                    </rect>
+
+                                    {/* Date label */}
+                                    {showLabel && (
+                                    <text
+                                        x={x + barWidth / 2}
+                                        y={graphHeight + 30}
+                                        textAnchor="middle"
+                                        className="text-xs fill-gray-600"
+                                        fontSize="10"
+                                    >
+                                        {formatDate(data.date)}
+                                    </text>
+                                    )}
+                                </g>
+                                );
+                            })}
+                            </svg>
+                        </div>
+
+                        {/* Legend */}
+                        <div className="flex flex-wrap items-center gap-3 md:gap-4 mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100">
+                            <div className="flex items-center gap-2">
+                            <div
+                                className="w-3 h-3 md:w-4 md:h-4 rounded-full"
+                                style={{ backgroundColor: COLOR_PRIMARY }}
+                            ></div>
+                            <span className="text-xs text-gray-600">Logs recorded</span>
+                            </div>
+                            <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 md:w-4 md:h-4 rounded-full bg-gray-200"></div>
+                            <span className="text-xs text-gray-600">No logs</span>
+                            </div>
+                        </div>
+                        </div>
+
 
                         {/* Summary Stats */}
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow" style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}>
@@ -351,4 +686,3 @@ export default function AnalyticsPage() {
         </div>
     );
 }
-

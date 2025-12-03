@@ -209,6 +209,7 @@ function GetToKnowYouPageContent() {
         .map((a) => a.trim())
         .filter(Boolean),
       habits: selectedHabits,
+      nutrition_goals: selectedPlan,
     };
 
     try {
@@ -273,7 +274,7 @@ function GetToKnowYouPageContent() {
       (question === 2 && selectedGoal) ||
       (question === 3 && selectedHabits.length > 0) ||
       (question === 4 && selectedPlan) ||
-      question === 5; // Telegram is optional
+      question === 5; 
 
     setCurrentStepContent({
       type,
@@ -428,10 +429,10 @@ function GetToKnowYouPageContent() {
                 >
                   <option value="">Select...</option>
                   <option value="sedentary">Sedentary</option>
-                  <option value="lightly_active">Lightly active</option>
-                  <option value="moderately_active">Moderately active</option>
-                  <option value="very_active">Very active</option>
-                  <option value="athlete">Athlete / intense</option>
+                  <option value="Lightly Active">Lightly active</option>
+                  <option value="Moderately Active">Moderately active</option>
+                  <option value="Very Active">Very active</option>
+                  <option value="Athlete">Athlete / intense</option>
                 </select>
               </div>
 
