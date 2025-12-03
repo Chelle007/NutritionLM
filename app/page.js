@@ -13,6 +13,7 @@ import OtpPopup from './components/OtpPopup';
 import ChatMessage from './components/ChatMessage';
 import ThinkingIndicator from './components/ThinkingIndicator';
 import InputArea from './components/InputArea';
+import ProfileModal from './components/ProfileModal';
 
 export default function NutritionLM() {
     const [otp, setOtp] = useState(null);
@@ -49,6 +50,7 @@ export default function NutritionLM() {
     const [googleFitVerified, setGoogleFitVerified] = useState(false);
     const [isMobile, setIsMobile] = useState(false);
     const [telegramPhotos, setTelegramPhotos] = useState([]);
+    const [isProfileModalOpen, setIsProfileModalOpen] = useState(false);
 
     // Handle responsive detection
     useEffect(() => {
@@ -705,6 +707,7 @@ export default function NutritionLM() {
                 sources={sources}
                 telegramPhotos={telegramPhotos}
                 setAttachment={setAttachment}
+                onOpenProfile={() => setIsProfileModalOpen(true)}
             />
 
             {/* CHAT AREA */}
@@ -730,6 +733,11 @@ export default function NutritionLM() {
                     setCopied={setCopied}
                     isRegenerating={isRegenerating}
                     onRegenerateOtp={handleRegenerateOtp}
+                />
+
+                <ProfileModal 
+                    isOpen={isProfileModalOpen}
+                    onClose={() => setIsProfileModalOpen(false)}
                 />
 
 
