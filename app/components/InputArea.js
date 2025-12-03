@@ -1,7 +1,7 @@
 "use client";
 
 import React from 'react';
-import { Send, Paperclip, X, ShieldCheck, Scale, UtensilsCrossed } from 'lucide-react';
+import { Send, Paperclip, X, ShieldCheck, Scale, UtensilsCrossed, BookOpen } from 'lucide-react';
 import {
     COLOR_PRIMARY,
     COLOR_ACCENT_DARK,
@@ -10,7 +10,9 @@ import {
     COLOR_COMPARE,
     COLOR_COMPARE_LIGHT,
     COLOR_NUTRITION,
-    COLOR_NUTRITION_LIGHT
+    COLOR_NUTRITION_LIGHT,
+    COLOR_LOG_FOOD,
+    COLOR_LOG_FOOD_LIGHT
 } from '../constants/colors';
 
 export default function InputArea({
@@ -115,6 +117,18 @@ export default function InputArea({
                         
                         {/* Left Side: Pills (Scrollable on mobile) */}
                         <div className="flex-1 min-w-0 flex items-center gap-2 overflow-x-auto scrollbar-hide py-1 pr-2">
+                            <button 
+                                onClick={() => setActiveButton(activeButton === 'logFood' ? null : 'logFood')}
+                                className="flex items-center gap-1.5 px-2.5 py-1 md:px-3 md:py-1.5 rounded-full text-[11px] md:text-xs font-semibold transition-colors whitespace-nowrap shrink-0"
+                                style={{
+                                    backgroundColor: activeButton === 'logFood' ? COLOR_LOG_FOOD : COLOR_LOG_FOOD_LIGHT,
+                                    color: activeButton === 'logFood' ? 'white' : COLOR_ACCENT_DARK
+                                }}
+                            >
+                                <BookOpen className="w-3 h-3 md:w-4 md:h-4 shrink-0" />
+                                Log<span className="hidden sm:inline"> Food</span>
+                            </button>
+
                             <button 
                                 onClick={() => setActiveButton(activeButton === 'factCheck' ? null : 'factCheck')}
                                 // Changed px-3 py-1.5 to px-2.5 py-1 (Slightly smaller)

@@ -18,6 +18,8 @@ export const COLOR_COMPARE = "#66BB6A";            // Green - Used for compare f
 export const COLOR_COMPARE_LIGHT = "#C8E6C9";      // Light Green - Used for compare backgrounds
 export const COLOR_NUTRITION = "#F59E0B";          // Amber - Used for nutrition check feature
 export const COLOR_NUTRITION_LIGHT = "#FEF3C7";    // Light Amber - Used for nutrition check backgrounds
+export const COLOR_LOG_FOOD = "#8E24AA";           // Purple - Used for log food feature
+export const COLOR_LOG_FOOD_LIGHT = "#E1BEE7";     // Light Purple - Used for log food backgrounds
 
 // Hover States
 export const COLOR_PRIMARY_HOVER = "#388E3C";      // Darker Green - Used for hover feedback
