@@ -84,14 +84,15 @@ export default function GetToKnowYouPage() {
   useEffect(() => {
     const protectOnboarding = async () => {
       const supabase = createClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+      const { data: { session } } = await supabase.auth.getSession();
+      const user = session?.user;
 
-      // 1) Not logged in → go to login
       if (!user) {
-        router.replace("/login");
-        return;
+          // Wait for auth state hydration instead of immediately redirecting
+          supabase.auth.onAuthStateChange((_event, session) => {
+              if (!session) router.replace("/login");
+          });
+          return;
       }
 
       try {

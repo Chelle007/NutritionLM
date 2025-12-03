@@ -24,10 +24,14 @@ export default function ProfilePage() {
                 process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
             );
 
-            const { data: { user: authUser } } = await supabase.auth.getUser();
+            const { data: { session } } = await supabase.auth.getSession();
+            const authUser = session?.user;
+
             if (!authUser) {
-                router.push('/login');
-                return;
+            supabase.auth.onAuthStateChange((_event, session) => {
+                if (!session) router.replace("/login");
+            });
+            return;
             }
 
             // Get user data
