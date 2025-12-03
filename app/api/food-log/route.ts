@@ -79,7 +79,7 @@ export async function POST(req: NextRequest) {
       const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
 
       // Prepare the parts array with image and prompt
-      const parts = [
+      const parts: any[] = [
         {
           inlineData: {
             mimeType: mimeType,
@@ -150,7 +150,7 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
     try {
       const nutritionModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
       
-      const nutritionParts = [
+      const nutritionParts: any[] = [
         {
           text: `The food name is "${foodName}". The ingredients are: ${ingredients.join(", ")}.
 

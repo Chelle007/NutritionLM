@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "../../utils/supabase/server";
+import { searchRelevantSources, formatSourcesAsContext, searchSourcesByFilename } from "../../../services/sourceSearch";
 
 export async function POST(req: NextRequest) {
   try {
@@ -16,7 +17,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { message, image, factCheck, compare } = await req.json();
+    const { message, image, factCheck, compare, chatSessionId } = await req.json();
     
     const genAI = new GoogleGenerativeAI(apiKey);
     
@@ -71,6 +72,7 @@ export async function POST(req: NextRequest) {
       
       ### 3. SAFETY & DISCLAIMERS
       * **Medical Disclaimer:** You are an AI, not a doctor. If a user asks about treating a specific disease (e.g., "diet to cure cancer"), you MUST preface your answer with: "I cannot provide medical advice. Please consult a healthcare professional. Here is general nutritional guidance regarding [topic]..."
+      * **IMPORTANT EXCEPTION:** Reading back or summarizing information that the user has explicitly uploaded to the system (such as their dietary restrictions, allergies, or medical conditions) is NOT providing medical advice. The user has given you permission to access and share this information by uploading it. When asked about their personal details from uploaded sources, you MUST provide that information.
       * **Eating Disorders:** If the user exhibits signs of an eating disorder (extreme restriction, purging), provide a supportive, non-judgmental refusal to assist with weight loss and suggest professional help.
     `;
 
@@ -152,14 +154,90 @@ export async function POST(req: NextRequest) {
         `;
     }
 
-    // 4. Combine mode instruction with source instruction
-    systemInstruction = `${modeInstruction}\n\n${sourceInstruction}`;
+    // 4. Search for relevant user sources (RAG)
+    let sourcesContext = '';
+    try {
+      // For personal queries, search more aggressively (increase topK)
+      const queryLower = (message || '').toLowerCase();
+      const isPersonalQuery = queryLower.includes('my ') ||
+                              queryLower.includes('restriction') ||
+                              queryLower.includes('allergy') ||
+                              queryLower.includes('detail') ||
+                              queryLower.includes('personal');
+      const topK = isPersonalQuery ? 10 : 5; // Get more chunks for personal queries
+      
+      let relevantSources = await searchRelevantSources(user.id, message || '', topK);
+      
+      // Fallback: If no sources found for personal queries, try filename search
+      if ((!relevantSources || relevantSources.length === 0) && isPersonalQuery) {
+        console.log('No semantic matches found, trying filename search for personal query');
+        relevantSources = await searchSourcesByFilename(user.id, message || '', topK);
+      }
+      
+      if (relevantSources && relevantSources.length > 0) {
+        sourcesContext = formatSourcesAsContext(relevantSources);
+      }
+    } catch (sourceError) {
+      console.error("Error searching sources:", sourceError);
+      // Continue without sources if search fails
+    }
 
-    // 5. Retrieve chat history from database
+    // 5. Add personal information access instruction if sources are available
+    let personalInfoInstruction = '';
+    if (sourcesContext) {
+      personalInfoInstruction = `
+      
+      ### CRITICAL: ACCESSING USER'S PERSONAL INFORMATION
+      **YOU MUST FOLLOW THESE INSTRUCTIONS:**
+      
+      1. The user has EXPLICITLY UPLOADED their personal information (dietary restrictions, allergies, medical conditions, preferences, etc.) in the sources provided above.
+      
+      2. Reading back or summarizing information that the user has uploaded is NOT providing medical advice - it is simply sharing information the user has already provided to you.
+      
+      3. When the user asks questions about their personal details such as:
+         - "what are my restrictions?"
+         - "what are my allergies?"
+         - "what's my restriction details?"
+         - "tell me about my dietary restrictions"
+         - Any question starting with "what's my..." or "what are my..." regarding their uploaded information
+      
+      4. You MUST answer these questions using the information from the uploaded sources above. DO NOT refuse to answer. DO NOT say you cannot provide medical advice. The user wants you to read back their own information.
+      
+      5. The user has given you EXPLICIT PERMISSION to access this information by uploading it to the system. This is an exception to the general medical advice disclaimer.
+      
+      6. If you cannot find the information in the sources above, say so clearly, but do NOT refuse on the basis of medical advice concerns.
+      `;
+    }
+
+    // 6. Combine mode instruction with source instruction and user sources context
+    systemInstruction = `${modeInstruction}\n\n${sourceInstruction}${personalInfoInstruction}${sourcesContext}`;
+
+    // 6. Ensure chat session exists or create one
+    let sessionId = chatSessionId;
+    if (!sessionId) {
+      // Create a new session if none provided
+      const { data: newSession, error: createError } = await supabase
+        .from("chat_sessions")
+        .insert({
+          user_id: user.id,
+          title: "New Chat"
+        })
+        .select()
+        .single();
+
+      if (createError) {
+        console.error("Error creating chat session:", createError);
+        return NextResponse.json({ error: "Failed to create chat session" }, { status: 500 });
+      }
+      sessionId = newSession.id;
+    }
+
+    // 7. Retrieve chat history from database for this session
     const { data: chatHistory, error: historyError } = await supabase
       .from("chat_messages")
       .select("role, message, image_url")
       .eq("user_id", user.id)
+      .eq("chat_session_id", sessionId)
       .order("created_at", { ascending: true })
       .limit(50); // Limit to last 50 messages to avoid token limits
 
@@ -167,7 +245,7 @@ export async function POST(req: NextRequest) {
       console.error("Error fetching chat history:", historyError);
     }
 
-    // 6. Build conversation history for Gemini
+    // 8. Build conversation history for Gemini
     const history: any[] = [];
     if (chatHistory && chatHistory.length > 0) {
       // Convert database messages to Gemini format
@@ -189,7 +267,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // 7. Save user message to database
+    // 9. Save user message to database
     let imageUrl = null;
     if (image?.data) {
       // If image is provided, we could upload it to storage, but for now we'll just store the reference
@@ -203,6 +281,7 @@ export async function POST(req: NextRequest) {
       .from("chat_messages")
       .insert({
         user_id: user.id,
+        chat_session_id: sessionId,
         role: "user",
         message: userMessageText,
         image_url: imageUrl,
@@ -212,7 +291,13 @@ export async function POST(req: NextRequest) {
       console.error("Error saving user message:", saveUserError);
     }
 
-    // 8. Build current message
+    // Update session's updated_at timestamp
+    await supabase
+      .from("chat_sessions")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", sessionId);
+
+    // 10. Build current message
     const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
     
     const parts = [];
@@ -231,7 +316,7 @@ export async function POST(req: NextRequest) {
 
     parts.push({ text: textMessage });
 
-    // 9. Use chat with history if available, otherwise use generateContent
+    // 11. Use chat with history if available, otherwise use generateContent
     let result;
     if (history.length > 0) {
       const chat = model.startChat({ history: history });
@@ -243,7 +328,7 @@ export async function POST(req: NextRequest) {
     const response = result.response;
     const responseText = response.text();
 
-    // 10. Extract Grounding Metadata (Citations)
+    // 12. Extract Grounding Metadata (Citations)
     // This works for both Compare and Fact Check modes automatically
     let citations: any[] = [];
     if (response.candidates?.[0]?.groundingMetadata) {
@@ -267,7 +352,7 @@ export async function POST(req: NextRequest) {
       console.warn("Fact Check mode: No citations found in grounding metadata. Model may not have used Google Search tool.");
     }
 
-    // 11. Save AI response to database
+    // 13. Save AI response to database
     const metadata: any = {};
     if (citations.length > 0) {
       metadata.citations = citations;
@@ -283,6 +368,7 @@ export async function POST(req: NextRequest) {
       .from("chat_messages")
       .insert({
         user_id: user.id,
+        chat_session_id: sessionId,
         role: "ai",
         message: responseText,
         metadata: metadata,
@@ -292,10 +378,38 @@ export async function POST(req: NextRequest) {
       console.error("Error saving AI message:", saveAIError);
     }
 
+    // Update session's updated_at timestamp again
+    await supabase
+      .from("chat_sessions")
+      .update({ updated_at: new Date().toISOString() })
+      .eq("id", sessionId);
+
+    // Auto-generate title from first user message if title is still "New Chat"
+    if (userMessageText && userMessageText.trim()) {
+      const { data: session } = await supabase
+        .from("chat_sessions")
+        .select("title")
+        .eq("id", sessionId)
+        .single();
+
+      if (session && (session.title === "New Chat" || !session.title)) {
+        // Generate a short title from the first message (max 50 chars)
+        const title = userMessageText.length > 50 
+          ? userMessageText.substring(0, 47) + "..."
+          : userMessageText;
+        
+        await supabase
+          .from("chat_sessions")
+          .update({ title })
+          .eq("id", sessionId);
+      }
+    }
+
     return NextResponse.json({ 
         reply: responseText, 
         isComparison: compare,
-        citations: citations 
+        citations: citations,
+        chatSessionId: sessionId
     });
 
   } catch (error: any) {

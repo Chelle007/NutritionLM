@@ -1,12 +1,12 @@
 // [START] documentation reference: https://supabase.com/docs/guides/auth/social-login/auth-google?queryGroups=framework&framework=nextjs&queryGroups=environment&environment=client
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { createClient } from "../utils/supabase/client";
 import Image from "next/image";
 
-export default function Login() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [isSigningIn, setIsSigningIn] = useState(false);
@@ -72,6 +72,18 @@ export default function Login() {
         </button>
       )}
     </div>
+  );
+}
+
+export default function Login() {
+  return (
+    <Suspense fallback={
+      <div className="flex flex-col justify-center items-center h-screen text-white bg-black">
+        <p className="text-lg animate-pulse">Loading...</p>
+      </div>
+    }>
+      <LoginContent />
+    </Suspense>
   );
 }
 // [END]
