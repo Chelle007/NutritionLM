@@ -448,8 +448,20 @@ export default function NutritionLM() {
                     throw new Error(data.error || "Failed to process image");
                 }
 
+                // Check if the image is not food
+                if (data.food_name === "not a food") {
+                    throw new Error("The uploaded image does not appear to contain food. Please upload an image of food or a meal.");
+                }
+
                 foodName = data.food_name || 'Detected Food';
-                ingredients = data.ingredients || [];
+                // Convert ingredients from array of objects {name, grams} to array of strings
+                if (data.ingredients && Array.isArray(data.ingredients)) {
+                    ingredients = data.ingredients.map(ing => 
+                        typeof ing === 'object' && ing.name ? ing.name : ing
+                    );
+                } else {
+                    ingredients = data.ingredients || [];
+                }
             } else {
                 setScanProgress({ stage: 2, message: 'Analyzing ingredients...' });
                 const parsed = parseNutritionInput(messageText);
