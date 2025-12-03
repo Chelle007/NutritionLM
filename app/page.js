@@ -24,13 +24,8 @@ export default function NutritionLM() {
     const [isRegenerating, setIsRegenerating] = useState(false);
 
 
-    const [messages, setMessages] = useState([
-        { 
-            id: 1, 
-            role: 'ai', 
-            text: "Hello! I'm NutritionLM. I've analyzed your uploaded dietary guidelines and meal plans. How can I help you eat better today?" 
-        }
-    ]);
+    const [messages, setMessages] = useState([]);
+    const [isLoadingHistory, setIsLoadingHistory] = useState(true);
     const [input, setInput] = useState('');
     
     // Attachment State
@@ -71,7 +66,10 @@ export default function NutritionLM() {
             );
 
             const { data: { user } } = await supabase.auth.getUser();
-            if (!user) return;
+            if (!user) {
+                setIsLoadingHistory(false);
+                return;
+            }
 
             const { data } = await supabase
             .from("users")
@@ -85,6 +83,85 @@ export default function NutritionLM() {
             setOtp(data?.telegram_otp || null);
         }
         loadUser();
+    }, []);
+
+    // Load chat history
+    useEffect(() => {
+        async function loadChatHistory() {
+            const supabase = createBrowserClient(
+                process.env.NEXT_PUBLIC_SUPABASE_URL ?? "",
+                process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ?? ""
+            );
+
+            const { data: { user } } = await supabase.auth.getUser();
+            if (!user) {
+                setIsLoadingHistory(false);
+                // Show welcome message if not logged in
+                setMessages([{ 
+                    id: 1, 
+                    role: 'ai', 
+                    text: "Hello! I'm NutritionLM. I've analyzed your uploaded dietary guidelines and meal plans. How can I help you eat better today?" 
+                }]);
+                return;
+            }
+
+            const { data: chatHistory, error } = await supabase
+                .from("chat_messages")
+                .select("*")
+                .eq("user_id", user.id)
+                .order("created_at", { ascending: true })
+                .limit(100); // Load last 100 messages
+
+            if (error) {
+                console.error("Error loading chat history:", error);
+                setIsLoadingHistory(false);
+                // Show welcome message on error
+                setMessages([{ 
+                    id: 1, 
+                    role: 'ai', 
+                    text: "Hello! I'm NutritionLM. I've analyzed your uploaded dietary guidelines and meal plans. How can I help you eat better today?" 
+                }]);
+                return;
+            }
+
+            if (chatHistory && chatHistory.length > 0) {
+                // Convert database messages to frontend format
+                const formattedMessages = chatHistory.map((msg, index) => {
+                    const messageObj = {
+                        id: msg.id,
+                        role: msg.role,
+                        text: msg.message,
+                    };
+
+                    // Add metadata if available
+                    if (msg.metadata) {
+                        if (msg.metadata.citations) {
+                            messageObj.citations = msg.metadata.citations;
+                        }
+                        if (msg.metadata.isComparison) {
+                            messageObj.comparisonData = msg.metadata.comparisonData;
+                        }
+                    }
+
+                    // Note: We can't restore images from history since we only stored a flag
+                    // Images in history will be lost, but new messages will work fine
+
+                    return messageObj;
+                });
+
+                setMessages(formattedMessages);
+            } else {
+                // No history, show welcome message
+                setMessages([{ 
+                    id: 1, 
+                    role: 'ai', 
+                    text: "Hello! I'm NutritionLM. I've analyzed your uploaded dietary guidelines and meal plans. How can I help you eat better today?" 
+                }]);
+            }
+
+            setIsLoadingHistory(false);
+        }
+        loadChatHistory();
     }, []);
 
     useEffect(() => {
