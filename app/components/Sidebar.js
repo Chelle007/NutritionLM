@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import Link from 'next/link';
 import { Sparkles, Menu, X, Plus, FileText, User, Import } from 'lucide-react';
 import { createBrowserClient } from "@supabase/ssr";
 import {
@@ -17,7 +16,8 @@ export default function Sidebar({
     isMobile,
     sources = [],
     telegramPhotos = [],      
-    setAttachment={setAttachment}             
+    setAttachment={setAttachment},
+    onOpenProfile
 }) {
     const [userFullName, setUserFullName] = useState('User');
 
@@ -177,10 +177,16 @@ export default function Sidebar({
                 </div>
                 
                 <div className={`p-4 border-t ${isMobile ? 'transition-opacity duration-300' : ''} ${isSidebarOpen ? 'opacity-100' : (isMobile ? 'opacity-0' : 'opacity-0 pointer-events-none')}`} style={{ borderColor: 'rgba(255, 255, 255, 0.1)' }}>
-                    <Link 
-                        href="/profile"
-                        className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors"
-                        onClick={() => isMobile && setIsSidebarOpen(false)}
+                    <button 
+                        onClick={() => {
+                            if (onOpenProfile) {
+                                onOpenProfile();
+                            }
+                            if (isMobile) {
+                                setIsSidebarOpen(false);
+                            }
+                        }}
+                        className="flex items-center gap-3 p-2 hover:bg-white/10 rounded-lg cursor-pointer transition-colors w-full text-left"
                     >
                         <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0" style={{ backgroundColor: COLOR_SECONDARY_LIGHT, color: COLOR_ACCENT_DARK }}>
                             <User className="w-4 h-4" style={{ color: COLOR_ACCENT_DARK }} />
@@ -189,7 +195,7 @@ export default function Sidebar({
                             <div className="text-sm font-medium text-white">{userFullName}</div>
                             <div className="text-xs text-gray-400">Pro Plan</div>
                         </div>
-                    </Link>
+                    </button>
                 </div>
             </div>
 
