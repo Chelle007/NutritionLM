@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Menu, X, Plus, FileText, User, Import } from 'lucide-react';
+import { Menu, X, Plus, FileText, User, Import } from 'lucide-react';
 import { createBrowserClient } from "@supabase/ssr";
 import {
     COLOR_SECONDARY_LIGHT,
@@ -48,7 +48,7 @@ export default function Sidebar({
         <>
             <div 
                 className={`${isMobile ? 'w-80' : (isSidebarOpen ? 'w-80' : 'w-16')}
-                transition-all duration-300 ease-in-out border-r border-gray-200 flex flex-col shrink-0
+                transition-all duration-300 ease-in-out md:border-r md:border-gray-200 flex flex-col shrink-0
                 fixed md:relative inset-y-0 left-0 z-40 md:z-auto overflow-hidden`}
                 style={{ 
                     backgroundColor: COLOR_ACCENT_DARK,

@@ -2,7 +2,8 @@
 
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
-import { Sparkles, ShieldCheck } from 'lucide-react';
+import Image from 'next/image';
+import { ShieldCheck } from 'lucide-react';
 import {
     COLOR_PRIMARY,
     COLOR_SECONDARY_LIGHT,
@@ -12,19 +13,23 @@ import {
 export default function ChatMessage({ msg }) {
     return (
         <div className={`flex gap-2 md:gap-4 ${msg.role === 'user' ? 'flex-row-reverse' : ''}`}>
-            <div className={`w-7 h-7 md:w-8 md:h-8 rounded-full flex items-center justify-center shrink-0 
-                ${msg.role === 'ai' ? 'text-white' : 'bg-gray-200'}`}
-                style={{ 
-                    backgroundColor: msg.role === 'ai' ? COLOR_PRIMARY : COLOR_ACCENT_DARK,
-                    color: msg.role === 'user' ? 'white' : 'white'
-                }}
-            >
-                {msg.role === 'ai' ? <Sparkles className="w-3 h-3 md:w-4 md:h-4" /> : <span className="text-[10px] md:text-xs font-bold">You</span>}
-            </div>
+            {msg.role === 'ai' && (
+                <div className="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center shrink-0">
+                    <div className="relative w-7 h-7 md:w-8 md:h-8 p-1.5 md:p-2">
+                        <Image
+                            src="/nutritionlm_chat_logo.png"
+                            alt="NutritionLM"
+                            fill
+                            className="object-contain"
+                            sizes="(max-width: 768px) 28px, 32px"
+                        />
+                    </div>
+                </div>
+            )}
 
             <div className={`flex flex-col max-w-[85%] md:max-w-[80%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                <div className={`text-sm leading-relaxed py-2 px-4 rounded-2xl
-                    ${msg.role === 'user' ? `text-gray-900 rounded-tr-none` : 'bg-transparent text-gray-800 -ml-2'}`}
+                <div className={`text-sm leading-relaxed rounded-2xl
+                    ${msg.role === 'user' ? `text-gray-900 rounded-tr-none py-2 px-4` : 'bg-transparent text-gray-800 px-2'}`}
                     style={{ backgroundColor: msg.role === 'user' ? COLOR_SECONDARY_LIGHT : 'transparent' }}
                 >
                     {/* Render Image in chat history */}

@@ -1,7 +1,8 @@
 "use client";
 
 import React from 'react';
-import { Sparkles, UtensilsCrossed } from 'lucide-react';
+import Image from 'next/image';
+import { UtensilsCrossed } from 'lucide-react';
 import { COLOR_PRIMARY } from '../constants/colors';
 
 export default function ThinkingIndicator({ 
@@ -14,8 +15,16 @@ export default function ThinkingIndicator({
 
     return (
         <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full flex items-center justify-center shrink-0 text-white" style={{ backgroundColor: COLOR_PRIMARY }}>
-                <Sparkles className="w-4 h-4" />
+            <div className="w-8 h-8 flex items-center justify-center shrink-0">
+                <div className="relative w-8 h-8 p-2">
+                    <Image
+                        src="/nutritionlm_chat_logo.png"
+                        alt="NutritionLM"
+                        fill
+                        className="object-contain"
+                        sizes="32px"
+                    />
+                </div>
             </div>
             <div className="flex flex-col max-w-[85%] md:max-w-[80%] items-start">
                 {isScanning ? (
