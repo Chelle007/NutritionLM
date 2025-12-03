@@ -2,7 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "../../utils/supabase/server";
-import { searchRelevantSources, formatSourcesAsContext } from "../../../services/sourceSearch";
+import { searchRelevantSources, formatSourcesAsContext, searchSourcesByFilename } from "../../../services/sourceSearch";
 
 export async function POST(req: NextRequest) {
   try {
@@ -72,6 +72,7 @@ export async function POST(req: NextRequest) {
       
       ### 3. SAFETY & DISCLAIMERS
       * **Medical Disclaimer:** You are an AI, not a doctor. If a user asks about treating a specific disease (e.g., "diet to cure cancer"), you MUST preface your answer with: "I cannot provide medical advice. Please consult a healthcare professional. Here is general nutritional guidance regarding [topic]..."
+      * **IMPORTANT EXCEPTION:** Reading back or summarizing information that the user has explicitly uploaded to the system (such as their dietary restrictions, allergies, or medical conditions) is NOT providing medical advice. The user has given you permission to access and share this information by uploading it. When asked about their personal details from uploaded sources, you MUST provide that information.
       * **Eating Disorders:** If the user exhibits signs of an eating disorder (extreme restriction, purging), provide a supportive, non-judgmental refusal to assist with weight loss and suggest professional help.
     `;
 
@@ -156,7 +157,23 @@ export async function POST(req: NextRequest) {
     // 4. Search for relevant user sources (RAG)
     let sourcesContext = '';
     try {
-      const relevantSources = await searchRelevantSources(user.id, message || '', 5);
+      // For personal queries, search more aggressively (increase topK)
+      const queryLower = (message || '').toLowerCase();
+      const isPersonalQuery = queryLower.includes('my ') ||
+                              queryLower.includes('restriction') ||
+                              queryLower.includes('allergy') ||
+                              queryLower.includes('detail') ||
+                              queryLower.includes('personal');
+      const topK = isPersonalQuery ? 10 : 5; // Get more chunks for personal queries
+      
+      let relevantSources = await searchRelevantSources(user.id, message || '', topK);
+      
+      // Fallback: If no sources found for personal queries, try filename search
+      if ((!relevantSources || relevantSources.length === 0) && isPersonalQuery) {
+        console.log('No semantic matches found, trying filename search for personal query');
+        relevantSources = await searchSourcesByFilename(user.id, message || '', topK);
+      }
+      
       if (relevantSources && relevantSources.length > 0) {
         sourcesContext = formatSourcesAsContext(relevantSources);
       }
@@ -165,8 +182,35 @@ export async function POST(req: NextRequest) {
       // Continue without sources if search fails
     }
 
-    // 5. Combine mode instruction with source instruction and user sources context
-    systemInstruction = `${modeInstruction}\n\n${sourceInstruction}${sourcesContext}`;
+    // 5. Add personal information access instruction if sources are available
+    let personalInfoInstruction = '';
+    if (sourcesContext) {
+      personalInfoInstruction = `
+      
+      ### CRITICAL: ACCESSING USER'S PERSONAL INFORMATION
+      **YOU MUST FOLLOW THESE INSTRUCTIONS:**
+      
+      1. The user has EXPLICITLY UPLOADED their personal information (dietary restrictions, allergies, medical conditions, preferences, etc.) in the sources provided above.
+      
+      2. Reading back or summarizing information that the user has uploaded is NOT providing medical advice - it is simply sharing information the user has already provided to you.
+      
+      3. When the user asks questions about their personal details such as:
+         - "what are my restrictions?"
+         - "what are my allergies?"
+         - "what's my restriction details?"
+         - "tell me about my dietary restrictions"
+         - Any question starting with "what's my..." or "what are my..." regarding their uploaded information
+      
+      4. You MUST answer these questions using the information from the uploaded sources above. DO NOT refuse to answer. DO NOT say you cannot provide medical advice. The user wants you to read back their own information.
+      
+      5. The user has given you EXPLICIT PERMISSION to access this information by uploading it to the system. This is an exception to the general medical advice disclaimer.
+      
+      6. If you cannot find the information in the sources above, say so clearly, but do NOT refuse on the basis of medical advice concerns.
+      `;
+    }
+
+    // 6. Combine mode instruction with source instruction and user sources context
+    systemInstruction = `${modeInstruction}\n\n${sourceInstruction}${personalInfoInstruction}${sourcesContext}`;
 
     // 6. Ensure chat session exists or create one
     let sessionId = chatSessionId;

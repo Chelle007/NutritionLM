@@ -177,23 +177,51 @@ export async function POST(req: NextRequest) {
       
       // Generate embeddings for each chunk and save to database
       const chunkPromises = chunks.map(async (chunkText, index) => {
-        const embedding = await generateEmbedding(chunkText);
-        
-        return supabase
-          .from("source_chunks")
-          .insert({
-            source_id: sourceData.id,
-            content: chunkText, // Use 'content' to match schema
-            chunk_index: index,
-            embedding: embedding,
-            metadata: {
-              total_chunks: chunks.length,
-              chunk_size: chunkText.length
+        try {
+          const embedding = await generateEmbedding(chunkText);
+          
+          const { error: insertError } = await supabase
+            .from("source_chunks")
+            .insert({
+              source_id: sourceData.id,
+              chunk_text: chunkText, // Use 'chunk_text' to match actual database column
+              chunk_index: index,
+              embedding: embedding,
+              metadata: {
+                total_chunks: chunks.length,
+                chunk_size: chunkText.length
+              }
+            });
+          
+          if (insertError) {
+            console.error(`Error inserting chunk ${index}:`, insertError);
+            // If chunk_text doesn't exist, try content
+            if (insertError.code === '42703' && insertError.message?.includes('chunk_text')) {
+              console.log('Trying with content column instead');
+              const { error: retryError } = await supabase
+                .from("source_chunks")
+                .insert({
+                  source_id: sourceData.id,
+                  content: chunkText,
+                  chunk_index: index,
+                  embedding: embedding,
+                  metadata: {
+                    total_chunks: chunks.length,
+                    chunk_size: chunkText.length
+                  }
+                });
+              if (retryError) {
+                console.error(`Error inserting chunk ${index} with content column:`, retryError);
+              }
             }
-          });
+          }
+        } catch (chunkError) {
+          console.error(`Error processing chunk ${index}:`, chunkError);
+        }
       });
 
       await Promise.all(chunkPromises);
+      console.log(`Successfully processed ${chunks.length} chunks for source ${sourceData.id}`);
       
     } catch (processingError: any) {
       console.error("Error processing document:", processingError);
