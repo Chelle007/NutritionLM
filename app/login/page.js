@@ -32,10 +32,16 @@ function LoginContent() {
     const supabase = createClient();
     setIsSigningIn(true);
 
+    // Determine the correct redirect URL
+    const redirectUrl = `${window.location.origin}/auth/callback`;
+    console.log('[Login] Initiating OAuth with redirectTo:', redirectUrl);
+    console.log('[Login] Current origin:', window.location.origin);
+    console.log('[Login] Full URL:', window.location.href);
+
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo: `${window.location.origin}/auth/callback`,
+        redirectTo: redirectUrl,
         queryParams: {
           access_type: "offline",
           prompt: "consent",
@@ -44,7 +50,7 @@ function LoginContent() {
     });
 
     if (error) {
-      console.error("Error logging in with Google:", error.message);
+      console.error("[Login] Error logging in with Google:", error.message);
       setIsSigningIn(false);
     }
   };
