@@ -146,7 +146,7 @@ export default function ChatMessage({ msg }) {
                                                 {key}
                                             </span>
                                             <span className="text-xs text-gray-600 font-semibold">
-                                                {value}%
+                                                {value} g
                                             </span>
                                         </div>
                                         <div className="w-full bg-gray-200 rounded-full h-2">

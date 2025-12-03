@@ -49,17 +49,24 @@ export async function POST() {
         You are a nutritionist. 
         Your task is to recommend the optimal average nutrition intake for a user to maintain their nutrition intake for a week based on their preference.
         User's preference: ${userPreference}.
-        Analyse the user preference and give the recommended nutrition intake on a scale of 0-100 for each nutrition type (protein, carbohydrates, fats, vitamins, minerals, fiber) based on the user preference data.
-        Now you should generate a JSON of nutritions and its recommended average intake for a week based on the user preference data.
+        Analyse the user preference and give the recommended daily nutrition intake in grams for each nutrition type (protein, carbohydrates, fats, vitamins, minerals, fiber) based on the user preference data.
+        Provide realistic values in grams:
+        - Protein: typically 50-150g per day
+        - Carbohydrates: typically 200-300g per day
+        - Fats: typically 50-100g per day
+        - Vitamins: provide in grams (note: vitamins are typically measured in mg, but provide gram values for consistency)
+        - Minerals: provide in grams (note: minerals are typically measured in mg, but provide gram values for consistency)
+        - Fiber: typically 25-35g per day
+        Now you should generate a JSON of nutritions and its recommended average daily intake in grams based on the user preference data.
         ONLY RESPOND WITH THE JSON FORMAT AND NO EXPLANATION. 
 Example format:
 {
-  "protein": 50,
-  "carbohydrates": 90,
-  "fats": 84,
-  "vitamins": 95,
-  "minerals": 99,
-  "fiber": 80
+  "protein": 120,
+  "carbohydrates": 250,
+  "fats": 75,
+  "vitamins": 0.5,
+  "minerals": 2.5,
+  "fiber": 30
 }`
       }
     ];

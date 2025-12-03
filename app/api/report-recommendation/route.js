@@ -151,7 +151,7 @@ Week Period: ${dateRange.startDate} to ${dateRange.endDate}
 Nutrition Comparison:
 ${JSON.stringify(comparison, null, 2)}
 
-Nutrition Goals (target values on scale 0-100):
+Nutrition Goals (target values in grams):
 ${JSON.stringify(nutritionGoals, null, 2)}
 
 Actual Average Weekly Intake:
