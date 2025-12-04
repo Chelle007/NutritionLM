@@ -155,15 +155,15 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
           text: `The food name is "${foodName}". The ingredients are: ${ingredients.join(", ")}.
 
 ONLY RESPOND WITH THE JSON FORMAT AND NO EXPLANATION. 
-Provide 6 types of nutritions as specified below and its estimated amount (0-100) for a single serving of the food:
+Provide 6 types of nutritions as specified below and its estimated grams of each nutrition the food:
 
 Example format:
 {
   "protein": 50,
   "carbohydrates": 90,
   "fats": 84,
-  "vitamins": 95,
-  "minerals": 99,
+  "vitamins": 0.5,
+  "minerals": 0.4,
   "fiber": 80
 }`,
         },
