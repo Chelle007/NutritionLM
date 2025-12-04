@@ -16,8 +16,8 @@ export default function Sidebar({
     setIsSidebarOpen,
     isMobile,
     sources = [],
-    telegramPhotos = [],
-    setAttachment = { setAttachment },
+    foodLogs = [],
+    onOpenFoodLog = null,
     onOpenProfile,
     onSourceUpload,
     onSourceDelete,
@@ -33,13 +33,7 @@ export default function Sidebar({
     const [deletingId, setDeletingId] = useState(null);
     const [viewMode, setViewMode] = useState('library'); // 'library' or 'chat'
     const [deletingChatId, setDeletingChatId] = useState(null);
-    const fileInputRef = useRef(null); 
-
-    async function urlToFile(url) {
-        const response = await fetch(url);
-        const blob = await response.blob();
-        return new File([blob], "telegram-photo.jpg", { type: blob.type });
-    }
+    const fileInputRef = useRef(null);
 
     useEffect(() => {
         async function loadUser() {
@@ -312,7 +306,7 @@ export default function Sidebar({
                                         Library
                                     </h2>
 
-                            {telegramPhotos.length > 0 && (
+                            {foodLogs.filter(log => log.image_url).length > 0 && (
                                 <button
                                     onClick={() => setIsExpanded(!isExpanded)}
                                     className="text-gray-300 hover:text-white flex items-center gap-1 text-xs"
@@ -337,43 +331,64 @@ export default function Sidebar({
                         >
 
                             <div className="text-sm font-medium text-white">
-                                Uploaded Photos from Telegram
+                                Food Log Library
                             </div>
 
                             <div className="text-xs text-gray-400">
-                                {telegramPhotos.length === 0
-                                    ? "No photos yet"
-                                    : `${telegramPhotos.length} photos`}
+                                {foodLogs.filter(log => log.image_url).length === 0
+                                    ? "No food logs yet"
+                                    : `${foodLogs.filter(log => log.image_url).length} food logs`}
                             </div>
 
-                            {telegramPhotos.length > 0 && !isExpanded && (
+                            {foodLogs.filter(log => log.image_url).length > 0 && !isExpanded && (
                                 <div className="mt-3 grid grid-cols-4 gap-2">
-                                    {telegramPhotos.slice(0, 4).map((photo, index) => ( 
-                                        <img
-                                            key={index}
-                                            src={photo.url}
-                                            className="w-full h-16 rounded-md object-cover cursor-pointer hover:opacity-80 transition"
-                                            onClick={async () => {
-                                                const file = await urlToFile(photo.url);
-                                                setAttachment({ file, preview: photo.url });
+                                    {foodLogs
+                                        .filter(log => log.image_url)
+                                        .slice(0, 4)
+                                        .map((foodLog) => ( 
+                                        <div
+                                            key={foodLog.id}
+                                            className="relative w-full h-16 rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition"
+                                            onClick={() => {
+                                                if (onOpenFoodLog) {
+                                                    onOpenFoodLog(foodLog);
+                                                }
                                             }}
-                                        />
+                                        >
+                                            <Image
+                                                src={foodLog.image_url}
+                                                alt={foodLog.food_name || 'Food image'}
+                                                fill
+                                                className="object-cover"
+                                                unoptimized
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             )}
 
                             {isExpanded && (
                                 <div className="mt-3 grid grid-cols-4 gap-2">
-                                    {telegramPhotos.map((photo, index) => (
-                                        <img
-                                            key={index}
-                                            src={photo.url}
-                                            className="w-full h-20 rounded-md object-cover cursor-pointer hover:opacity-80 transition"
-                                            onClick={async () => {
-                                                const file = await urlToFile(photo.url);
-                                                setAttachment({ file, preview: photo.url });
+                                    {foodLogs
+                                        .filter(log => log.image_url)
+                                        .map((foodLog) => (
+                                        <div
+                                            key={foodLog.id}
+                                            className="relative w-full h-20 rounded-md overflow-hidden cursor-pointer hover:opacity-80 transition"
+                                            onClick={() => {
+                                                if (onOpenFoodLog) {
+                                                    onOpenFoodLog(foodLog);
+                                                }
                                             }}
-                                        />
+                                        >
+                                            <Image
+                                                src={foodLog.image_url}
+                                                alt={foodLog.food_name || 'Food image'}
+                                                fill
+                                                className="object-cover"
+                                                unoptimized
+                                            />
+                                        </div>
                                     ))}
                                 </div>
                             )}

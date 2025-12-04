@@ -36,7 +36,7 @@ export default function Header({
                 <div className="flex items-center ml-1 md:ml-0">
                     <div className="relative w-[130px] h-[50px] md:w-[220px] md:h-[56px]">
                         <Image
-                            src="/Nutritionlm.png"
+                            src="/nutritionlm.png"
                             alt="NutritionLM logo"
                             fill
                             className="object-contain"
