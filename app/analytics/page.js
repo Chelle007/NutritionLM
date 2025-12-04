@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, TrendingUp, Calendar, Apple } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Calendar, Apple, Ruler, Weight } from 'lucide-react';
 import { createBrowserClient } from "@supabase/ssr";
 import { 
     COLOR_PRIMARY, 
@@ -334,7 +334,7 @@ export default function AnalyticsPage() {
                             style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
                         >
                             {/* Header */}
-                            <div className="flex items-center justify-between mb-3 md:mb-4">
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 mb-3 md:mb-4">
                                 <div>
                                     <h2 className="text-base md:text-lg font-bold" style={{ color: COLOR_ACCENT_DARK }}>
                                         Nutrition Activity
@@ -343,13 +343,28 @@ export default function AnalyticsPage() {
                                         All nutrition types vs Your Daily Targets.
                                     </p>
                                 </div>
-                                <div className="flex flex-col items-end gap-1 text-[11px] md:text-xs text-gray-600">
-                                    <span className="px-2 py-0.5 rounded-full bg-gray-100 border border-gray-200">
-                                        {heightCm && weightKg
-                                            ? `Ht: ${heightCm} cm · Wt: ${weightKg} kg`
-                                            : 'Set your height & weight'}
-                                    </span>
-                                </div>
+                                {heightCm && weightKg ? (
+                                    <div className="flex items-center gap-3 sm:gap-4">
+                                        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+                                            <Ruler className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
+                                            <span className="text-xs sm:text-sm font-medium text-gray-700">
+                                                {heightCm} cm
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+                                            <Weight className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-gray-600" />
+                                            <span className="text-xs sm:text-sm font-medium text-gray-700">
+                                                {weightKg} kg
+                                            </span>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <div className="flex items-center gap-1.5 px-2 sm:px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200">
+                                        <span className="text-xs sm:text-sm text-gray-500">
+                                            Set your height & weight
+                                        </span>
+                                    </div>
+                                )}
                             </div>
 
                             {/* Main content: left list + right ring */}
