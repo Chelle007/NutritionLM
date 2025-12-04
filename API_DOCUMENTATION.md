@@ -15,12 +15,14 @@ This document provides comprehensive documentation for all services and API endp
 - [API Endpoints](#api-endpoints)
   - [Analytics API](#analytics-api)
   - [Chat API](#chat-api)
+  - [Food Log API](#food-log-api)
   - [Google Fit APIs](#google-fit-apis)
   - [Ingredients API](#ingredients-api)
   - [Nutrition Goals API](#nutrition-goals-api)
   - [Nutritionist API](#nutritionist-api)
   - [Optimal Nutrition API](#optimal-nutrition-api)
   - [Report Recommendation API](#report-recommendation-api)
+  - [Sources API](#sources-api)
   - [Weekly Report API](#weekly-report-api)
 
 ---
@@ -326,23 +328,172 @@ Returns analytics data including food log streaks, achievements, and graph data 
 
 **Endpoint:** `POST /api/chat`
 
-Handles chat interactions with the AI nutritionist.
+Handles chat interactions with the AI nutritionist. Supports multiple modes including regular chat, fact-checking, and comparison. Uses RAG (Retrieval-Augmented Generation) to access user-uploaded sources.
 
 **Authentication:** Required
 
 **Request Body:**
 ```json
 {
-  "message": "What should I eat for breakfast?"
+  "message": "What should I eat for breakfast?",
+  "image": {
+    "data": "base64_encoded_image_data",
+    "mimeType": "image/jpeg"
+  },
+  "factCheck": false,
+  "compare": false,
+  "chatSessionId": "optional_session_id"
 }
 ```
+
+**Parameters:**
+- `message` (string, optional) - The user's message/question
+- `image` (object, optional) - Image object with `data` (base64) and `mimeType` fields
+- `factCheck` (boolean, optional) - If true, enables fact-checking mode with web search
+- `compare` (boolean, optional) - If true, enables comparison mode with structured JSON response
+- `chatSessionId` (string, optional) - Existing chat session ID. If not provided, a new session is created
+
+**Response (Regular Chat):**
+```json
+{
+  "reply": "AI-generated response...",
+  "citations": [],
+  "chatSessionId": "session_id",
+  "isComparison": false
+}
+```
+
+**Response (Fact Check Mode):**
+```json
+{
+  "reply": "Fact-checked response with citations [1], [2], [3]...",
+  "citations": [
+    {
+      "title": "Source Title",
+      "uri": "https://example.com/source",
+      "snippet": "Relevant snippet from source"
+    }
+  ],
+  "chatSessionId": "session_id",
+  "isComparison": false
+}
+```
+
+**Response (Compare Mode):**
+```json
+{
+  "reply": "Summary of comparison",
+  "citations": [
+    {
+      "title": "Source Title",
+      "uri": "https://example.com/source",
+      "snippet": "Relevant snippet"
+    }
+  ],
+  "chatSessionId": "session_id",
+  "isComparison": true,
+  "comparisonData": {
+    "sideA": {
+      "title": "Perspective A Title",
+      "points": ["Point 1 [1]", "Point 2 [2]"]
+    },
+    "sideB": {
+      "title": "Perspective B Title",
+      "points": ["Point 3 [3]", "Point 4 [4]"]
+    },
+    "summary": "Balanced conclusion [5]",
+    "sources": [
+      {
+        "title": "Source Title",
+        "uri": "https://example.com/source"
+      }
+    ]
+  }
+}
+```
+
+**Features:**
+- Maintains chat history per session (last 50 messages)
+- Automatically searches user-uploaded sources for relevant information
+- Supports image analysis
+- Fact-checking mode uses Google Search with authoritative sources
+- Comparison mode returns structured JSON with two perspectives
+- Auto-generates chat session titles from first message
+
+---
+
+### Food Log API
+
+**Endpoint:** `POST /api/food-log`
+
+Uploads a food image, extracts food name and ingredients using AI, analyzes nutrition, and saves the food log to the database.
+
+**Authentication:** Required
+
+**Request:**
+- Method: `POST`
+- Content-Type: `multipart/form-data`
+- Body: FormData with `image` field (File)
 
 **Response:**
 ```json
 {
-  "response": "AI-generated response..."
+  "success": true,
+  "foodLog": {
+    "id": 1,
+    "user_id": "uuid",
+    "image_url": "https://supabase.co/storage/...",
+    "food_name": "Chicken Burger",
+    "ingredients": ["Chicken", "Burger Bun", "Lettuce", "Tomato"],
+    "nutrition": {
+      "protein": 25,
+      "carbohydrates": 45,
+      "fats": 15,
+      "vitamins": 0.1,
+      "minerals": 0.5,
+      "fiber": 8
+    },
+    "record_date": "2025-01-27",
+    "record_time": "12:00:00",
+    "created_at": "2025-01-27T12:00:00Z"
+  },
+  "foodName": "Chicken Burger",
+  "ingredients": ["Chicken", "Burger Bun", "Lettuce", "Tomato"],
+  "nutrition": {
+    "protein": 25,
+    "carbohydrates": 45,
+    "fats": 15,
+    "vitamins": 0.1,
+    "minerals": 0.5,
+    "fiber": 8
+  }
 }
 ```
+
+**Error Responses:**
+```json
+{
+  "error": "No image provided"
+}
+```
+
+```json
+{
+  "error": "GEMINI_API_KEY is not set on the server"
+}
+```
+
+```json
+{
+  "error": "Failed to save food log to database"
+}
+```
+
+**Note:** 
+- The image is uploaded to Supabase Storage in the `food-images` bucket
+- Food name and ingredients are extracted using Gemini 2.5 Flash
+- Nutrition values are estimated using Gemini 2.0 Flash
+- The food log is automatically saved with the current date and time
 
 ---
 
@@ -352,17 +503,59 @@ Handles chat interactions with the AI nutritionist.
 
 **Endpoint:** `GET /api/google-fit/auth`
 
-Initiates Google Fit OAuth authentication.
+Initiates Google Fit OAuth authentication flow. Redirects user to Google OAuth consent screen.
 
 **Authentication:** Required
+
+**Response:** Redirects to Google OAuth URL with the following scopes:
+- `https://www.googleapis.com/auth/fitness.activity.read`
+- `https://www.googleapis.com/auth/fitness.body.read`
+- `https://www.googleapis.com/auth/fitness.nutrition.read`
+
+**Error Response:**
+```json
+{
+  "error": "Google Fit client ID not configured",
+  "hint": "Set GOOGLE_FIT_CLIENT_ID or GOOGLE_CLIENT_ID in your environment variables"
+}
+```
+
+**Note:** 
+- Uses state parameter to prevent CSRF attacks
+- If user logged in with Google, uses their email as login hint
+- Redirect URI defaults to `${origin}/api/google-fit/callback` or uses `GOOGLE_FIT_REDIRECT_URI` env variable
 
 #### Google Fit Callback
 
 **Endpoint:** `GET /api/google-fit/callback`
 
-Handles Google Fit OAuth callback.
+Handles Google Fit OAuth callback. Exchanges authorization code for access/refresh tokens and stores them in the database.
 
-**Authentication:** Required
+**Authentication:** Required (via OAuth flow)
+
+**Query Parameters:**
+- `code` (string) - OAuth authorization code
+- `state` (string) - Base64-encoded state containing userId
+- `error` (string, optional) - OAuth error if authentication failed
+
+**Response:** Redirects to home page with query parameters:
+- Success: `?google_fit_connected=true`
+- Error: `?error=error_type&details=...`
+
+**Error Types:**
+- `google_fit_auth_failed` - OAuth error from Google
+- `missing_oauth_params` - Missing code or state
+- `invalid_state` - Invalid state parameter
+- `google_fit_not_configured` - Missing client ID or secret
+- `token_exchange_failed` - Failed to exchange code for tokens
+- `no_access_token` - No access token in response
+- `supabase_not_configured` - Missing Supabase credentials
+- `missing_database_columns` - Database schema issue
+- `database_error` - Database operation failed
+
+**Note:**
+- Stores `google_fit_access_token`, `google_fit_refresh_token`, `google_fit_token_expires_at`, and `google_fit_verified` in the `users` table
+- Requires `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, and `GOOGLE_FIT_REDIRECT_URI` environment variables
 
 ---
 
@@ -596,6 +789,135 @@ Compares weekly average nutrition intake with nutrition goals and returns AI-gen
 
 ---
 
+### Sources API
+
+**Endpoint:** `GET /api/sources`, `POST /api/sources`, `DELETE /api/sources`
+
+Manages user-uploaded sources (documents) for RAG (Retrieval-Augmented Generation) in chat.
+
+**Authentication:** Required
+
+#### GET /api/sources
+
+Lists all sources for the authenticated user.
+
+**Response:**
+```json
+{
+  "sources": [
+    {
+      "id": 1,
+      "title": "My Dietary Restrictions",
+      "file_name": "restrictions.pdf",
+      "file_type": "PDF",
+      "file_url": "https://supabase.co/storage/...",
+      "file_size": 102400,
+      "created_at": "2025-01-27T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/sources
+
+Uploads a new source document. Extracts text, chunks it, and generates embeddings for RAG.
+
+**Request:**
+- Method: `POST`
+- Content-Type: `multipart/form-data`
+- Body: FormData with:
+  - `file` (File, required) - Document file
+  - `title` (string, optional) - Custom title (defaults to filename)
+
+**Supported File Types:**
+- PDF (`.pdf`)
+- Word Documents (`.docx`, `.doc`)
+- Text Files (`.txt`, `.text`)
+
+**File Size Limit:** 10MB
+
+**Response:**
+```json
+{
+  "source": {
+    "id": 1,
+    "user_id": "uuid",
+    "title": "My Dietary Restrictions",
+    "file_name": "restrictions.pdf",
+    "file_type": "PDF",
+    "file_url": "https://supabase.co/storage/...",
+    "file_size": 102400,
+    "created_at": "2025-01-27T10:00:00Z"
+  },
+  "message": "Source uploaded successfully"
+}
+```
+
+**Error Responses:**
+```json
+{
+  "error": "No file provided"
+}
+```
+
+```json
+{
+  "error": "File type not supported. Allowed types: PDF, DOCX, DOC, TXT, TEXT"
+}
+```
+
+```json
+{
+  "error": "File size exceeds 10MB limit"
+}
+```
+
+```json
+{
+  "error": "Storage bucket 'user-sources' not found. Please create it in Supabase Storage."
+}
+```
+
+**Note:**
+- Files are uploaded to Supabase Storage in the `user-sources` bucket
+- Text is extracted, chunked, and embedded for semantic search
+- Chunks are stored in the `source_chunks` table with embeddings
+- Processing continues even if embedding generation fails (file is still saved)
+
+#### DELETE /api/sources
+
+Deletes a source and all its associated chunks.
+
+**Query Parameters:**
+- `id` (string, required) - Source ID to delete
+
+**Response:**
+```json
+{
+  "message": "Source deleted successfully"
+}
+```
+
+**Error Responses:**
+```json
+{
+  "error": "Source ID is required"
+}
+```
+
+```json
+{
+  "error": "Source not found"
+}
+```
+
+**Note:**
+- Deletes the file from Supabase Storage
+- Deletes all associated chunks from `source_chunks` table
+- Only deletes sources owned by the authenticated user
+
+---
+
 ### Weekly Report API
 
 **Endpoint:** `GET /api/weekly-report`
@@ -696,7 +1018,13 @@ The following environment variables are required:
 
 - `NEXT_PUBLIC_SUPABASE_URL` - Supabase project URL
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` - Supabase anon/public key
+- `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for server-side operations)
 - `GEMINI_API_KEY` - Google Gemini API key (for AI features)
+
+**Optional (for Google Fit integration):**
+- `GOOGLE_CLIENT_ID` - Google OAuth client ID
+- `GOOGLE_CLIENT_SECRET` - Google OAuth client secret
+- `GOOGLE_FIT_REDIRECT_URI` - Google Fit OAuth redirect URI (defaults to `${origin}/api/google-fit/callback`)
 
 ---
 
@@ -722,5 +1050,5 @@ The following environment variables are required:
 
 ## Last Updated
 
-02 Dec 2025 09:15PM SGT
+27 Jan 2025
 
