@@ -159,6 +159,29 @@ nutritionlm/
 └── public/                     # Static assets
 ```
 
+## Telegram bot Project Structure
+NutritionLM_bot/
+│
+├── main.py               # Telegram bot main entry point
+│                        # - Handles webhook
+│                        # - Receives photos
+│                        # - Uploads images to Supabase
+│                        # - Calls Nutrition & Ingredients APIs
+│                        # - Inserts food log records
+│
+├── render.yaml          # Render deployment configuration
+│                        # - Web service setup
+│                        # - Auto deploy triggers
+│                        # - Environment variables
+│
+├── requirements.txt     # Python package dependencies
+│                        # - telegram bot
+│                        # - supabase-py
+│                        # - requests, zoneinfo, etc.
+│
+└── runtime.txt          # Python runtime version for Render
+                         # e.g., python-3.10
+
 ---
 
 ## Deployment
