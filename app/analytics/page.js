@@ -282,10 +282,33 @@ export default function AnalyticsPage() {
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow" style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}>
                             <div className="flex flex-col md:flex-row items-center md:justify-between gap-4 md:gap-0">
                                 {/* Health Emoji - Top on mobile, right on desktop */}
-                                <div className="flex items-center justify-center order-first md:order-last md:ml-8">
+                                <div className="flex flex-col items-center justify-center order-first md:order-last md:ml-8">
                                     <div className="text-7xl md:text-6xl">
                                         {getHealthEmoji(mostRecentHealthLevel)}
                                     </div>
+                                    {mostRecentHealthLevel !== null && mostRecentHealthLevel !== undefined && (
+                                        <div className="mt-2 text-center">
+                                            <p className="text-xs text-gray-500 mb-1">Health Score</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-gray-200 rounded-full h-2 w-24 overflow-hidden">
+                                                    <div 
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{ 
+                                                            width: `${mostRecentHealthLevel}%`,
+                                                            backgroundColor: mostRecentHealthLevel >= 70 
+                                                                ? '#4CAF50' 
+                                                                : mostRecentHealthLevel >= 40 
+                                                                    ? '#FF9800' 
+                                                                    : '#F44336'
+                                                        }}
+                                                    />
+                                                </div>
+                                                <span className="text-sm font-semibold" style={{ color: COLOR_ACCENT_DARK }}>
+                                                    {mostRecentHealthLevel}/100
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Food Log Streak - Left */}
@@ -466,6 +489,163 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
 
+                        {/* Health Level Line Chart */}
+                        <div
+                            className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow"
+                            style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}
+                        >
+                            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 sm:gap-0 mb-4 md:mb-6">
+                                <div>
+                                    <h2 className="text-base md:text-lg font-bold" style={{ color: COLOR_ACCENT_DARK }}>
+                                        Average Health Level (30 days)
+                                    </h2>
+                                    <p className="text-xs md:text-sm text-gray-500 mt-1">
+                                        Daily average health level from food logs
+                                    </p>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs md:text-sm text-gray-600">
+                                    <TrendingUp className="w-3 h-3 md:w-4 md:h-4" />
+                                    <span>Health Trend</span>
+                                </div>
+                            </div>
+
+                            {/* Line Chart */}
+                            <div className="overflow-x-auto pb-4">
+                                <svg
+                                    width="100%"
+                                    height={graphHeight + 60}
+                                    viewBox={`0 0 ${graphData.length * (barWidth + barSpacing) + 20} ${graphHeight + 60}`}
+                                    className="min-w-full"
+                                >
+                                    {/* X-Axis baseline */}
+                                    <line
+                                        x1="10"
+                                        y1={graphHeight + 10}
+                                        x2={graphData.length * (barWidth + barSpacing) + 10}
+                                        y2={graphHeight + 10}
+                                        stroke="#E5E7EB"
+                                        strokeWidth="1"
+                                    />
+
+                                    {/* Y-Axis labels (0-100 scale for health level) */}
+                                    {[0, 25, 50, 75, 100].map((value) => {
+                                        const y = graphHeight + 10 - (value / 100) * graphHeight;
+                                        return (
+                                            <g key={value}>
+                                                <line
+                                                    x1="10"
+                                                    y1={y}
+                                                    x2={graphData.length * (barWidth + barSpacing) + 10}
+                                                    y2={y}
+                                                    stroke="#E5E7EB"
+                                                    strokeDasharray="3 3"
+                                                    strokeWidth="0.5"
+                                                />
+                                                <text
+                                                    x="5"
+                                                    y={y + 4}
+                                                    className="text-xs fill-gray-400"
+                                                    fontSize="10"
+                                                    textAnchor="end"
+                                                >
+                                                    {value}
+                                                </text>
+                                            </g>
+                                        );
+                                    })}
+
+                                    {/* Line path */}
+                                    {(() => {
+                                        const points = graphData
+                                            .map((data, index) => {
+                                                if (data.avgHealthLevel === null || data.avgHealthLevel === undefined) {
+                                                    return null;
+                                                }
+                                                const x = 10 + index * (barWidth + barSpacing) + barWidth / 2;
+                                                const y = graphHeight + 10 - (data.avgHealthLevel / 100) * graphHeight;
+                                                return { x, y, date: data.date, value: data.avgHealthLevel };
+                                            })
+                                            .filter(p => p !== null);
+
+                                        if (points.length === 0) {
+                                            return null;
+                                        }
+
+                                        // Build path string
+                                        let pathData = '';
+                                        points.forEach((point, index) => {
+                                            if (index === 0) {
+                                                pathData += `M ${point.x} ${point.y}`;
+                                            } else {
+                                                pathData += ` L ${point.x} ${point.y}`;
+                                            }
+                                        });
+
+                                        return (
+                                            <>
+                                                {/* Line */}
+                                                <path
+                                                    d={pathData}
+                                                    fill="none"
+                                                    stroke={COLOR_PRIMARY}
+                                                    strokeWidth="2"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                    className="transition-all"
+                                                />
+                                                {/* Points */}
+                                                {points.map((point, index) => {
+                                                    const showLabel = index % labelEvery === 0;
+                                                    return (
+                                                        <g key={`point-${index}`}>
+                                                            <circle
+                                                                cx={point.x}
+                                                                cy={point.y}
+                                                                r="4"
+                                                                fill={COLOR_PRIMARY}
+                                                                stroke="white"
+                                                                strokeWidth="2"
+                                                                className="transition-all hover:r-6 cursor-pointer"
+                                                            >
+                                                                <title>
+                                                                    {formatDate(point.date)}: {point.value} health level
+                                                                </title>
+                                                            </circle>
+                                                            {/* Date label */}
+                                                            {showLabel && (
+                                                                <text
+                                                                    x={point.x}
+                                                                    y={graphHeight + 30}
+                                                                    textAnchor="middle"
+                                                                    className="text-xs fill-gray-600"
+                                                                    fontSize="10"
+                                                                >
+                                                                    {formatDate(point.date)}
+                                                                </text>
+                                                            )}
+                                                        </g>
+                                                    );
+                                                })}
+                                            </>
+                                        );
+                                    })()}
+                                </svg>
+                            </div>
+
+                            {/* Legend */}
+                            <div className="flex flex-wrap items-center gap-3 md:gap-4 mt-3 md:mt-4 pt-3 md:pt-4 border-t border-gray-100">
+                                <div className="flex items-center gap-2">
+                                    <div
+                                        className="w-3 h-3 md:w-4 md:h-4 rounded-full"
+                                        style={{ backgroundColor: COLOR_PRIMARY }}
+                                    ></div>
+                                    <span className="text-xs text-gray-600">Average health level</span>
+                                </div>
+                                <div className="flex items-center gap-2">
+                                    <span className="text-xs text-gray-500">Scale: 0-100</span>
+                                </div>
+                            </div>
+                        </div>
 
                      {/* Analytics Graph */}
                         <div
@@ -601,7 +781,6 @@ export default function AnalyticsPage() {
                             </div>
                         </div>
                         </div>
-
 
                         {/* Summary Stats */}
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow" style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}>
