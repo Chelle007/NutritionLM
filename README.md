@@ -160,6 +160,8 @@ nutritionlm/
 ```
 
 ## Telegram bot Project Structure
+
+```
 NutritionLM_bot/
 │
 ├── main.py               # Telegram bot main entry point
@@ -182,6 +184,7 @@ NutritionLM_bot/
 └── runtime.txt          # Python runtime version for Render
                          # e.g., python-3.10
 
+```
 ---
 
 ## Deployment
