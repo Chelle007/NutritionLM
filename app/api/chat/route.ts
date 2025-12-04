@@ -4,6 +4,128 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 import { createClient } from "../../utils/supabase/server";
 import { searchRelevantSources, formatSourcesAsContext, searchSourcesByFilename } from "../../../services/sourceSearch";
 
+/**
+ * Validates if a message is related to food/nutrition
+ * Returns true if the message is food/nutrition related, false otherwise
+ */
+function isFoodNutritionRelated(message: string): boolean {
+  if (!message || message.trim().length === 0) {
+    return true; // Empty messages or image-only queries are allowed
+  }
+
+  const lowerMessage = message.toLowerCase();
+  
+  // Food and nutrition related keywords
+  const foodNutritionKeywords = [
+    // Food items
+    'food', 'meal', 'dish', 'recipe', 'cooking', 'ingredient', 'snack', 'breakfast', 'lunch', 'dinner',
+    'fruit', 'vegetable', 'grain', 'protein', 'carb', 'fat', 'fiber', 'vitamin', 'mineral',
+    'calorie', 'calories', 'nutrition', 'nutrient', 'diet', 'dietary', 'eating', 'consume',
+    
+    // Health and nutrition concepts
+    'health', 'healthy', 'nutrition', 'nutritious', 'wellness', 'wellbeing', 'dietary',
+    'allergy', 'allergies', 'intolerance', 'restriction', 'restrictions', 'preference', 'preferences',
+    'macro', 'macronutrient', 'micronutrient', 'supplement', 'supplements',
+    
+    // Body and health metrics (in nutrition context)
+    'weight', 'obesity', 'overweight', 'underweight', 'bmi', 'body mass',
+    'metabolism', 'metabolic', 'digest', 'digestion', 'digestive',
+    
+    // Medical conditions related to nutrition
+    'diabetes', 'diabetic', 'celiac', 'gluten', 'lactose', 'vegan', 'vegetarian', 'keto', 'paleo',
+    'anemia', 'deficiency', 'malnutrition', 'obesity',
+    
+    // Food groups and categories
+    'dairy', 'meat', 'poultry', 'fish', 'seafood', 'plant', 'organic', 'processed',
+    'whole grain', 'wholegrain', 'legume', 'nut', 'seed', 'herb', 'spice',
+    
+    // Cooking and preparation
+    'cook', 'bake', 'roast', 'grill', 'steam', 'boil', 'fry', 'preparation', 'prep',
+    
+    // Nutritional information
+    'nutritional', 'nutrition facts', 'food label', 'serving size', 'portion', 'serving',
+    'daily value', 'rda', 'recommended', 'intake', 'requirement', 'needs',
+    
+    // Food safety
+    'food safety', 'foodborne', 'expiration', 'expiry', 'storage', 'preserve', 'preservation',
+    
+    // Personal queries (often nutrition-related)
+    'my diet', 'my food', 'my meal', 'my nutrition', 'my restriction', 'my allergy',
+    'what should i eat', 'what can i eat', 'what to eat', 'should i eat',
+    
+    // Common nutrition questions
+    'how much', 'how many calories', 'is healthy', 'is good for', 'benefits of', 'effects of',
+    'source of', 'rich in', 'contains', 'has', 'provide', 'provides'
+  ];
+  
+  // Check if message contains food/nutrition keywords first
+  const hasFoodKeyword = foodNutritionKeywords.some(keyword => lowerMessage.includes(keyword));
+  
+  // Non-food/nutrition topics that should be rejected
+  const nonFoodTopics = [
+    // Math and science
+    'solve', 'calculate', 'equation', 'formula', 'math', 'mathematics', 'algebra', 'calculus', 'geometry',
+    'physics', 'chemistry', 'biology', 'science', 'experiment', 'hypothesis', 'theory',
+    
+    // Programming and tech
+    'code', 'programming', 'function', 'variable', 'algorithm', 'software', 'hardware', 'computer',
+    'javascript', 'python', 'java', 'html', 'css', 'sql', 'database',
+    
+    // General knowledge (non-nutrition)
+    'history', 'geography', 'literature', 'philosophy', 'politics', 'economics', 'finance',
+    'weather', 'climate', 'astronomy', 'space', 'planet', 'star',
+    
+    // Other topics
+    'translate', 'translation', 'language', 'grammar', 'syntax'
+  ];
+  
+  // Check for math patterns (e.g., "what is 2+2", "solve 5*3")
+  const mathPattern = /\d+\s*[+\-*/]\s*\d+|\b(solve|calculate|compute)\s+\d+/i;
+  if (mathPattern.test(lowerMessage) && !hasFoodKeyword) {
+    return false;
+  }
+  
+  // Check for explicit non-food topics
+  for (const topic of nonFoodTopics) {
+    if (lowerMessage.includes(topic)) {
+      // But allow if it's in a nutrition context (e.g., "calculate calories", "biology of nutrition")
+      if (topic === 'calculate' && (lowerMessage.includes('calorie') || lowerMessage.includes('nutrition') || lowerMessage.includes('macro'))) {
+        continue;
+      }
+      if (topic === 'biology' && (lowerMessage.includes('nutrition') || lowerMessage.includes('diet') || lowerMessage.includes('food'))) {
+        continue;
+      }
+      if (topic === 'chemistry' && (lowerMessage.includes('nutrition') || lowerMessage.includes('food') || lowerMessage.includes('nutrient'))) {
+        continue;
+      }
+      // Reject if it's clearly non-food related and has no food keywords
+      const contextWords = ['math', 'mathematics', 'physics', 'programming', 'code', 'equation', 'formula', 'solve', 'algebra', 'calculus'];
+      const hasNonFoodContext = contextWords.some(word => lowerMessage.includes(word));
+      if (hasNonFoodContext && !hasFoodKeyword) {
+        return false;
+      }
+      // Reject other non-food topics if no food context
+      if (!hasFoodKeyword) {
+        return false;
+      }
+    }
+  }
+  
+  // If it has food keywords, it's related
+  if (hasFoodKeyword) {
+    return true;
+  }
+  
+  // For very short messages or ambiguous queries, be more lenient
+  // But if it's clearly a question about non-food topics, reject it
+  if (lowerMessage.length < 10) {
+    return true; // Very short messages might be image queries or follow-ups
+  }
+  
+  // If no food keywords found and message is substantial, likely not food-related
+  return false;
+}
+
 export async function POST(req: NextRequest) {
   try {
     const apiKey = process.env.GEMINI_API_KEY;
@@ -19,6 +141,15 @@ export async function POST(req: NextRequest) {
 
     const { message, image, factCheck, compare, chatSessionId } = await req.json();
     
+    // Validate that the question is food/nutrition related
+    const userMessage = message || (image ? "Analyze this image" : "");
+    if (userMessage && !isFoodNutritionRelated(userMessage)) {
+      return NextResponse.json({ 
+        error: "I can only help with food and nutrition-related questions. Please ask me about food, nutrition, diet, health, ingredients, recipes, or related topics.",
+        reply: "I'm a nutrition assistant specialized in food and nutrition topics. I can help you with questions about:\n\n• Food and ingredients\n• Nutrition and dietary information\n• Healthy eating and meal planning\n• Dietary restrictions and allergies\n• Nutritional content of foods\n• Recipes and cooking\n• Food safety\n\nPlease ask me a food or nutrition-related question!"
+      }, { status: 400 });
+    }
+    
     const genAI = new GoogleGenerativeAI(apiKey);
     
     // 1. Base Configuration
@@ -29,6 +160,7 @@ export async function POST(req: NextRequest) {
     // 2. Shared Instructions (Applied across all modes)
     const sourceInstruction = `
       ### 1. CORE BEHAVIOR
+      * **STRICT SCOPE LIMITATION:** You are a nutrition assistant and can ONLY answer questions related to food, nutrition, diet, health, ingredients, recipes, cooking, dietary restrictions, allergies, and related topics. You MUST refuse to answer any questions about mathematics, physics, chemistry (unless related to nutrition), programming, general knowledge, history, geography, or any other non-food/nutrition topics. If asked a non-food/nutrition question, politely decline and redirect the user to ask about food or nutrition.
       * **Evidence-Based:** Prioritize information from major health organizations and meta-analyses over single, isolated studies.
       * **Neutral Tone:** Avoid sensationalism, fear-mongering, or hype (e.g., "miracle food," "toxic," "instant cure").
       * **Accessibility:** Explain complex biochemical concepts in simple, plain English.
