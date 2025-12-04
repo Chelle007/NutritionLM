@@ -59,3 +59,43 @@ export async function getLastWeekFoodLogs(supabase, user) {
     return data;
 }
 
+// Gets the date range for last 7 days (rolling 7-day period from today)
+// Returns an object with startDate and endDate in ISO format (YYYY-MM-DD)
+export function getLast7DaysDateRange() {
+    const today = new Date();
+    today.setHours(23, 59, 59, 999);
+    
+    // Calculate 7 days ago (6 days before today, including today = 7 days total)
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(today.getDate() - 6); // 6 days ago + today = 7 days
+    sevenDaysAgo.setHours(0, 0, 0, 0);
+    
+    return {
+        startDate: sevenDaysAgo.toISOString().split('T')[0], // YYYY-MM-DD
+        endDate: today.toISOString().split('T')[0], // YYYY-MM-DD
+        startDateFull: sevenDaysAgo.toISOString(),
+        endDateFull: today.toISOString()
+    };
+}
+
+// Server-side function: Get food logs for last 7 days for a user
+export async function getLast7DaysFoodLogs(supabase, user) {
+    const dateRange = getLast7DaysDateRange();
+    
+    const { data, error } = await supabase
+        .from('food_logs')
+        .select('*')
+        .eq('user_id', user.id)
+        .gte('record_date', dateRange.startDate)
+        .lte('record_date', dateRange.endDate)
+        .order('record_date', { ascending: true })
+        .order('record_time', { ascending: true });
+    
+    if (error) {
+        console.error('Error fetching last 7 days food logs:', error);
+        return null;
+    }
+    
+    return data;
+}
+

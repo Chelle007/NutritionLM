@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '../../utils/supabase/server';
-import { getLastWeekFoodLogs, getLastWeekDateRange } from '../../../services/foodLog';
+import { getLast7DaysFoodLogs, getLast7DaysDateRange } from '../../../services/foodLog';
 import { getUserPreferenceServer } from '../../../services/userPreference';
 
 // Calculate average nutrition intake from food logs
@@ -71,11 +71,11 @@ export async function GET() {
       );
     }
 
-    // Get date range for last week
-    const dateRange = getLastWeekDateRange();
+    // Get date range for last 7 days
+    const dateRange = getLast7DaysDateRange();
 
-    // Get food logs for last week
-    const foodLogs = await getLastWeekFoodLogs(supabase, user);
+    // Get food logs for last 7 days
+    const foodLogs = await getLast7DaysFoodLogs(supabase, user);
     
     if (foodLogs === null) {
       return Response.json(
@@ -106,8 +106,8 @@ export async function GET() {
       );
     }
 
-    // Calculate average nutrition intake for last week
-    const lastWeekNutritionIntakeAvg = calculateAverageNutrition(foodLogs || []);
+    // Calculate average nutrition intake for last 7 days
+    const last7DaysNutritionIntakeAvg = calculateAverageNutrition(foodLogs || []);
 
     // Check API key
     const apiKey = process.env.GEMINI_API_KEY;
@@ -127,7 +127,7 @@ export async function GET() {
     const nutritionTypes = ['protein', 'carbohydrates', 'fats', 'vitamins', 'minerals', 'fiber'];
     
     nutritionTypes.forEach(type => {
-      const actual = lastWeekNutritionIntakeAvg[type] || 0;
+      const actual = last7DaysNutritionIntakeAvg[type] || 0;
       const goal = nutritionGoals[type] || 0;
       const difference = actual - goal;
       const percentageDiff = goal > 0 ? ((difference / goal) * 100).toFixed(1) : 0;
@@ -144,9 +144,9 @@ export async function GET() {
     const parts = [
       {
         text: `
-You are a professional nutritionist. Analyze the user's weekly nutrition intake compared to their goals and provide personalized recommendations.
+You are a professional nutritionist. Analyze the user's last 7 days nutrition intake compared to their goals and provide personalized recommendations.
 
-Week Period: ${dateRange.startDate} to ${dateRange.endDate}
+Period: ${dateRange.startDate} to ${dateRange.endDate}
 
 Nutrition Comparison:
 ${JSON.stringify(comparison, null, 2)}
@@ -154,8 +154,8 @@ ${JSON.stringify(comparison, null, 2)}
 Nutrition Goals (target values in grams):
 ${JSON.stringify(nutritionGoals, null, 2)}
 
-Actual Average Weekly Intake:
-${JSON.stringify(lastWeekNutritionIntakeAvg, null, 2)}
+Actual Average 7-Day Intake:
+${JSON.stringify(last7DaysNutritionIntakeAvg, null, 2)}
 
 Based on this comparison, provide:
 1. A brief analysis of how the user performed against their goals

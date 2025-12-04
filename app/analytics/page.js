@@ -11,43 +11,6 @@ import {
     COLOR_CONTENT_BG 
 } from '../constants/colors';
 
-//BMI-based recommended nutrition targets for the users
-const getRecommendedNutrition = (bmiCategory) => {
-    switch (bmiCategory) {
-        case 'Underweight':
-            return [
-                { key: 'carbs',   label: 'Carbohydrate', target: 280, unit: 'g' },
-                { key: 'protein', label: 'Protein',      target: 80,  unit: 'g' },
-                { key: 'fats',    label: 'Fats',         target: 75,  unit: 'g' },
-            ];
-        case 'Normal':
-            return [
-                { key: 'carbs',   label: 'Carbohydrate', target: 230, unit: 'g' },
-                { key: 'protein', label: 'Protein',      target: 70,  unit: 'g' },
-                { key: 'fats',    label: 'Fats',         target: 65,  unit: 'g' },
-            ];
-        case 'Overweight':
-            return [
-                { key: 'carbs',   label: 'Carbohydrate', target: 180, unit: 'g' },
-                { key: 'protein', label: 'Protein',      target: 90,  unit: 'g' },
-                { key: 'fats',    label: 'Fats',         target: 55,  unit: 'g' },
-            ];
-        case 'Obese':
-            return [
-                { key: 'carbs',   label: 'Carbohydrate', target: 160, unit: 'g' },
-                { key: 'protein', label: 'Protein',      target: 100, unit: 'g' },
-                { key: 'fats',    label: 'Fats',         target: 50,  unit: 'g' },
-            ];
-        default:
-            //In case no BMI yet, it will provide general recommnedation
-            return [
-                { key: 'carbs',   label: 'Carbohydrate', target: 220, unit: 'g' },
-                { key: 'protein', label: 'Protein',      target: 75,  unit: 'g' },
-                { key: 'fats',    label: 'Fats',         target: 60,  unit: 'g' },
-            ];
-    }
-};
-
 // Apply BMI category color
 const getBmiColor = (category) => {
     switch (category) {
@@ -79,13 +42,23 @@ export default function AnalyticsPage() {
         carbs: 0,
         protein: 0,
         fats: 0,
+        vitamins: 0,
+        minerals: 0,
+        fiber: 0,
     });
     const [heightCm, setHeightCm] = useState(null);
     const [weightKg, setWeightKg] = useState(null);
+    const [nutritionGoals, setNutritionGoals] = useState(null);
 
-
-    // Recommended nutrition based on BMI category
-    const recommendedNutrition = getRecommendedNutrition(bmiCategory);
+    // Build recommended nutrition from nutrition goals
+    const recommendedNutrition = nutritionGoals ? [
+        { key: 'carbs', label: 'Carbohydrate', target: Number(nutritionGoals.carbohydrates ?? 0), unit: 'g' },
+        { key: 'protein', label: 'Protein', target: Number(nutritionGoals.protein ?? 0), unit: 'g' },
+        { key: 'fats', label: 'Fats', target: Number(nutritionGoals.fats ?? 0), unit: 'g' },
+        { key: 'vitamins', label: 'Vitamins', target: Number(nutritionGoals.vitamins ?? 0), unit: 'g' },
+        { key: 'minerals', label: 'Minerals', target: Number(nutritionGoals.minerals ?? 0), unit: 'g' },
+        { key: 'fiber', label: 'Fiber', target: Number(nutritionGoals.fiber ?? 0), unit: 'g' },
+    ] : [];
     const isOverweightOrObese = bmiCategory === 'Overweight' || bmiCategory === 'Obese';
 
     // Add progress information for each nutrient
@@ -151,23 +124,35 @@ export default function AnalyticsPage() {
                     return;
                 }
 
-                // Existing analytics API
-                const response = await fetch('/api/analytics');
-                if (!response.ok) {
+                // Fetch analytics data (graph, streaks, achievements)
+                const analyticsResponse = await fetch('/api/analytics');
+                if (!analyticsResponse.ok) {
                     throw new Error('Failed to fetch analytics');
                 }
-                const data = await response.json();
-                setGraphData(data.graphData || []);
-                setFoodLogStreak(data.foodLogStreak || 0);
-                setHealthyFoodStreak(data.healthyFoodStreak || 0);
-                setTotalLogs(data.totalLogs || 0);
-                setMostRecentHealthLevel(data.mostRecentHealthLevel);
-                setAchievements(data.achievements || []);
+                const analyticsData = await analyticsResponse.json();
+                setGraphData(analyticsData.graphData || []);
+                setFoodLogStreak(analyticsData.foodLogStreak || 0);
+                setHealthyFoodStreak(analyticsData.healthyFoodStreak || 0);
+                setTotalLogs(analyticsData.totalLogs || 0);
+                setMostRecentHealthLevel(analyticsData.mostRecentHealthLevel);
+                setAchievements(analyticsData.achievements || []);
+
+                // Fetch weekly report for nutrition averages and goals
+                const weeklyReportResponse = await fetch('/api/weekly-report');
+                if (!weeklyReportResponse.ok) {
+                    throw new Error('Failed to fetch weekly report');
+                }
+                const weeklyReportData = await weeklyReportResponse.json();
+                const nutritionAvg = weeklyReportData.last_7_days_nutrition_intake_avg || {};
                 setLoggedNutrition({
-                    carbs: Number(data.loggedCarbohydrates ?? 0), 
-                    protein: Number(data.loggedProtein ?? 0),
-                    fats: Number(data.loggedFats ?? 0),
+                    carbs: Number(nutritionAvg.carbohydrates ?? 0), 
+                    protein: Number(nutritionAvg.protein ?? 0),
+                    fats: Number(nutritionAvg.fats ?? 0),
+                    vitamins: Number(nutritionAvg.vitamins ?? 0),
+                    minerals: Number(nutritionAvg.minerals ?? 0),
+                    fiber: Number(nutritionAvg.fiber ?? 0),
                 });
+                setNutritionGoals(weeklyReportData.nutritionGoals || null);
 
 
                 //Fetch BMI / compute from height & weight
@@ -348,7 +333,7 @@ export default function AnalyticsPage() {
                                         Nutrition Activity
                                     </h2>
                                     <p className="text-xs md:text-sm text-gray-500 mt-1">
-                                        Carbohydrate, Protein &amp; Fats vs Your Daily Targets.
+                                        All nutrition types vs Your Daily Targets.
                                     </p>
                                 </div>
                                 <div className="flex flex-col items-end gap-1 text-[11px] md:text-xs text-gray-600">
@@ -362,7 +347,7 @@ export default function AnalyticsPage() {
 
                             {/* Main content: left list + right ring */}
                             <div className="flex flex-col md:flex-row gap-6 items-stretch">
-                                {/* Left side: Carbs / Protein / Fats */}
+                                {/* Left side: All nutrition types */}
                                 <div className="flex-1 space-y-3">
                                     {nutritionProgress.map((nutrient) => {
                                         const colorClass =
@@ -370,7 +355,13 @@ export default function AnalyticsPage() {
                                                 ? 'text-rose-500'   // red
                                                 : nutrient.key === 'protein'
                                                 ? 'text-green-500' // green
-                                                : 'text-sky-500';  // blue
+                                                : nutrient.key === 'fats'
+                                                ? 'text-sky-500'   // blue
+                                                : nutrient.key === 'vitamins'
+                                                ? 'text-yellow-500' // yellow
+                                                : nutrient.key === 'minerals'
+                                                ? 'text-purple-500' // purple
+                                                : 'text-orange-500'; // orange for fiber
 
                                         let perNutrientMessage = '';
                                         if (isOverweightOrObese && nutrient.actual > nutrient.target) {

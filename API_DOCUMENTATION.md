@@ -264,6 +264,50 @@ const { data: { user } } = await supabase.auth.getUser();
 const foodLogs = await getLastWeekFoodLogs(supabase, user);
 ```
 
+#### `getLast7DaysDateRange()`
+
+Calculates the date range for the last 7 days (rolling 7-day period from today).
+
+**Returns:**
+- `Object` - Date range object:
+  ```javascript
+  {
+    startDate: "2025-01-20",  // YYYY-MM-DD format (7 days ago)
+    endDate: "2025-01-27",     // YYYY-MM-DD format (today)
+    startDateFull: "2025-01-20T00:00:00.000Z",
+    endDateFull: "2025-01-27T23:59:59.999Z"
+  }
+  ```
+
+**Example:**
+```javascript
+import { getLast7DaysDateRange } from './services/foodLog'
+
+const dateRange = getLast7DaysDateRange();
+console.log(`Last 7 days: ${dateRange.startDate} to ${dateRange.endDate}`);
+```
+
+#### `getLast7DaysFoodLogs(supabase, user)`
+
+Gets all food logs for the last 7 days (rolling 7-day period from today) for a specific user.
+
+**Parameters:**
+- `supabase` (Object) - Supabase client instance
+- `user` (Object) - User object with `id` property
+
+**Returns:**
+- `Promise<Array|null>` - Array of food log objects or null on error
+
+**Example:**
+```javascript
+import { getLast7DaysFoodLogs } from './services/foodLog'
+import { createClient } from '../app/utils/supabase/server'
+
+const supabase = await createClient();
+const { data: { user } } = await supabase.auth.getUser();
+const foodLogs = await getLast7DaysFoodLogs(supabase, user);
+```
+
 ---
 
 ### Supabase Client Service
@@ -767,14 +811,14 @@ Generates optimal nutrition goals based on user preferences using Gemini AI and 
 
 **Endpoint:** `GET /api/report-recommendation`
 
-Compares weekly average nutrition intake with nutrition goals and returns AI-generated recommendations from Gemini.
+Compares last 7 days average nutrition intake with nutrition goals and returns AI-generated recommendations from Gemini.
 
 **Authentication:** Required
 
 **Response:**
 ```json
 {
-  "recommendation": "Based on your weekly nutrition intake, I notice that you're doing well with protein and fiber, but you could benefit from increasing your vitamin intake. Here are some specific recommendations..."
+  "recommendation": "Based on your last 7 days nutrition intake, I notice that you're doing well with protein and fiber, but you could benefit from increasing your vitamin intake. Here are some specific recommendations..."
 }
 ```
 
@@ -922,7 +966,7 @@ Deletes a source and all its associated chunks.
 
 **Endpoint:** `GET /api/weekly-report`
 
-Returns a comprehensive weekly nutrition report including food logs, nutrition goals, and average intake for last week (Monday-Sunday).
+Returns a comprehensive nutrition report including food logs, nutrition goals, and average intake for the last 7 days (rolling 7-day period from today).
 
 **Authentication:** Required
 
@@ -961,7 +1005,7 @@ Returns a comprehensive weekly nutrition report including food logs, nutrition g
     "minerals": 2.5,
     "fiber": 30
   },
-  "last_week_nutrition_intake_avg": {
+  "last_7_days_nutrition_intake_avg": {
     "protein": 95.5,
     "carbohydrates": 220.2,
     "fats": 65.3,
