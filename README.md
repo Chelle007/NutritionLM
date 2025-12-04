@@ -185,6 +185,4 @@ The Telegram bot is deployed separately on Render:
 
 ---
 
-## Credit
-
 Made with ❤️ by Cool Beans
