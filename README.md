@@ -1,121 +1,108 @@
-# NutritionLM
-
-NutritionLM is an AI-powered nutrition assistant that helps users track, understand, and optimize their nutrition through a conversational interface. The platform combines personalized AI guidance with food logging, source-based learning, and integration with health tracking services.
-
-- **Live app**: https://nutrition-lm.vercel.app
-- **Telegram bot**: https://t.me/nutritionlm_bot
-- **Bot backend repo**: https://github.com/Chloelee05/NutritionLM_bot
-- **Bot deployment (Render)**: https://nutritionlm-bot.onrender.com/
-
----
-
-## Features
-
-### 🤖 AI-Powered Chat Assistant
-- **Conversational Interface**: Chat with an AI nutritionist powered by Google Gemini
-- **Chat Sessions**: Multiple conversation threads with automatic session management
-- **Fact Checking**: Verify nutrition claims with web search and authoritative sources
-- **Comparison Mode**: Compare different nutrition perspectives side-by-side
-- **Image Analysis**: Upload food images for ingredient detection and nutrition analysis
-- **RAG Integration**: Answers informed by user-uploaded documents (dietary guidelines, meal plans, etc.)
-
-### 📸 Food Logging
-- **Image Recognition**: Automatically extract ingredients from food photos
-- **Nutrition Analysis**: Get detailed nutrition breakdowns (protein, carbs, fats, vitamins, minerals, fiber)
-- **Health Scoring**: Receive healthiness ratings (0-100) for logged foods
-- **Food History**: View and manage your food logs with filtering and search
-
-### 📊 Analytics & Reports
-- **Weekly Reports**: Comprehensive nutrition summaries with goal tracking
-- **Streaks & Achievements**: Track logging consistency and unlock achievements
-- **Analytics Dashboard**: Visualize nutrition trends over time
-- **Goal Comparison**: Compare actual intake vs. nutrition goals
-
-### 📄 Source Management
-- **Document Upload**: Upload PDFs, Word docs, and text files as knowledge sources
-- **RAG Search**: AI searches your documents to provide personalized answers
-- **Source Citations**: See which sources inform each AI response
-
-### 🔗 Integrations
-- **Telegram Bot**: Connect via Telegram for reminders and check-ins
-- **Google Fit**: Sync activity and health data (optional)
-
-### 👤 User Profile
-- **Onboarding Flow**: Personalized setup with goals, preferences, and dietary restrictions
-- **Profile Management**: Update personal information and nutrition goals
-- **Custom Goals**: Set daily nutrition targets (protein, carbs, fats, etc.)
+<div align="center">
+  <img src="./public/NutritionLM_logo.svg" alt="NutritionLM Logo" width="120" />
+  
+  # NutritionLM
+  
+  **Your AI-powered nutrition companion for smarter eating**
+  
+  Track, understand, and optimize your nutrition through intelligent conversations and personalized insights.
+  
+  [![Live App](https://img.shields.io/badge/Live-nutrition--lm.vercel.app-blue?style=flat-square)](https://nutrition-lm.vercel.app)
+  [![Telegram Bot](https://img.shields.io/badge/Telegram-@nutritionlm__bot-26A5E4?style=flat-square&logo=telegram)](https://t.me/nutritionlm_bot)
+  
+</div>
 
 ---
 
-## Tech Stack
+## ✨ Features
 
-- **Framework**: Next.js 16 (App Router)
-- **Language**: React 19 (JavaScript/TypeScript)
-- **AI**: Google Gemini 2.0 Flash/Pro
-- **Auth & Database**: Supabase (PostgreSQL)
-- **Styling**: Tailwind CSS 4 (via PostCSS)
-- **Icons**: `lucide-react`
-- **File Processing**: `mammoth` (Word docs), `pdf-parse` (PDFs)
-- **Markdown Rendering**: `react-markdown`
+### 🤖 AI Nutritionist Chat
+Chat with an intelligent AI nutritionist powered by Google Gemini 2.0. Get personalized advice, verify nutrition claims with authoritative sources, and compare different perspectives side-by-side. Upload food images for instant ingredient detection and analysis, with answers informed by your own uploaded documents.
+
+### 📸 Smart Food Logging
+Snap a photo of your meal and let AI extract ingredients automatically. Get detailed nutrition breakdowns including macros, vitamins, minerals, and fiber. Each food receives a healthiness score (0-100) and is saved to your searchable food history.
+
+### 📊 Analytics & Insights
+Track your progress with comprehensive weekly reports, nutrition trend visualizations, and goal comparisons. Build logging streaks, unlock achievements, and see how your actual intake stacks up against your targets.
+
+### � Peersonal Knowledge Base
+Upload your dietary guidelines, meal plans, or nutrition research as PDFs, Word docs, or text files. The AI uses RAG (Retrieval-Augmented Generation) to search your documents and provide personalized, source-cited answers.
+
+### 🔗 Seamless Integrations
+- **Telegram Bot**: Get reminders and check-ins via [@nutritionlm_bot](https://t.me/nutritionlm_bot)
+- **Google Fit**: Sync your activity and health data (optional)
+
+### 👤 Personalized Experience
+Complete an onboarding flow to set your nutrition goals, dietary preferences, and restrictions. Manage your profile and customize daily targets for protein, carbs, fats, and more.
 
 ---
 
-## Getting Started
+## 🛠️ Tech Stack
+
+| Category | Technology |
+|----------|-----------|
+| **Framework** | Next.js 16 (App Router) |
+| **Frontend** | React 19 |
+| **AI** | Google Gemini 2.0 Flash/Pro |
+| **Database** | Supabase (PostgreSQL) |
+| **Auth** | Supabase Auth (Google OAuth) |
+| **Styling** | Tailwind CSS 4 |
+| **Icons** | Lucide React |
+| **Document Processing** | mammoth, pdf-parse |
+| **Markdown** | react-markdown |
+
+---
+
+## 🚀 Getting Started
 
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Supabase project (with Google OAuth provider configured)
-- Google Gemini API key
-- Google OAuth credentials (optional, for Google Fit integration)
+- [Supabase](https://supabase.com) project with Google OAuth configured
+- [Google Gemini API](https://ai.google.dev) key
+- Google OAuth credentials (optional, for Google Fit)
 
 ### Installation
 
-1. **Clone the repository**
+1. Clone the repository
+   ```bash
+   git clone <repository-url>
+   cd nutritionlm
+   ```
 
-```bash
-git clone <repository-url>
-cd nutritionlm
-```
+2. Install dependencies
+   ```bash
+   npm install
+   ```
 
-2. **Install dependencies**
+3. Set up environment variables
+   
+   Create `.env.local` in the project root:
+   ```bash
+   # Supabase
+   NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
-```bash
-npm install
-```
+   # Google Gemini
+   GEMINI_API_KEY=your_gemini_api_key
 
-3. **Set up environment variables**
+   # Google Fit OAuth (optional)
+   GOOGLE_CLIENT_ID=your_google_client_id
+   GOOGLE_CLIENT_SECRET=your_google_client_secret
+   GOOGLE_FIT_REDIRECT_URI=http://localhost:3000/api/google-fit/callback
+   ```
 
-Create a `.env.local` file at the project root:
+4. Set up the database
+   
+   Run `db/schema.sql` in your Supabase SQL editor to create all required tables.
 
-```bash
-# Supabase
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
-SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-
-# Google Gemini
-GEMINI_API_KEY=your_gemini_api_key
-
-# Google Fit OAuth (optional)
-GOOGLE_CLIENT_ID=your_google_client_id
-GOOGLE_CLIENT_SECRET=your_google_client_secret
-GOOGLE_FIT_REDIRECT_URI=http://localhost:3000/api/google-fit/callback
-```
-
-4. **Set up the database**
-
-Run the SQL schema file from the `db/` directory in your Supabase SQL editor:
-
-- `db/schema.sql` - Complete database schema
-
-5. **Run the development server**
-
-```bash
-npm run dev
-```
-
-Open `http://localhost:3000` in your browser.
+5. Start the development server
+   ```bash
+   npm run dev
+   ```
+   
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
 
 ---
 
@@ -161,28 +148,37 @@ nutritionlm/
 
 ---
 
-## Deployment
+## 🌐 Deployment
 
-### Web App (Vercel)
+### Web App
+Deployed on [Vercel](https://vercel.com) with automatic deployments from the `main` branch.
 
-The web app is deployed on Vercel with automatic deployments from the `main` branch:
+**Production**: [nutrition-lm.vercel.app](https://nutrition-lm.vercel.app)
 
-- **Production URL**: https://nutrition-lm.vercel.app
-
-Environment variables must be configured in Vercel's project settings.
+Configure environment variables in your Vercel project settings.
 
 ### Telegram Bot
+Deployed separately on [Render](https://render.com).
 
-The Telegram bot is deployed separately on Render:
-- **Repository**: https://github.com/Chloelee05/NutritionLM_bot
-- **Deployment**: https://nutritionlm-bot.onrender.com/
-
----
-
-## Documentation
-
-- [API Documentation](./API_DOCUMENTATION.md) - Complete API reference
+- **Repository**: [NutritionLM_bot](https://github.com/Chloelee05/NutritionLM_bot)
+- **Endpoint**: [nutritionlm-bot.onrender.com](https://nutritionlm-bot.onrender.com/)
 
 ---
 
+## 📚 Documentation
+
+For detailed API reference, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md)
+
+---
+
+## 🤝 Contributing
+
+Contributions are welcome! Feel free to open issues or submit pull requests.
+
+---
+
+<div align="center">
+  
 Made with ❤️ by Cool Beans
+
+</div>
