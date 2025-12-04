@@ -211,7 +211,57 @@ export default function NutritionLM() {
                             messageObj.citations = msg.metadata.citations;
                         }
                         if (msg.metadata.isComparison) {
-                            messageObj.comparisonData = msg.metadata.comparisonData;
+                            // If comparisonData exists in metadata, use it
+                            if (msg.metadata.comparisonData) {
+                                messageObj.comparisonData = msg.metadata.comparisonData;
+                            } else {
+                                // Fallback: try to parse from message field if comparisonData is missing
+                                // This handles old messages that were saved before we started storing comparisonData
+                                try {
+                                    let jsonString = msg.message;
+                                    
+                                    // Extract JSON from markdown code blocks or plain text
+                                    const jsonMatch = msg.message.match(/```(?:json)?\s*([\s\S]*?)```/);
+                                    if (jsonMatch) {
+                                        jsonString = jsonMatch[1];
+                                    } else {
+                                        // Strip leading/trailing backticks
+                                        jsonString = msg.message.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+                                    }
+                                    
+                                    // Find balanced JSON object using brace counting
+                                    const startIndex = jsonString.indexOf('{');
+                                    if (startIndex !== -1) {
+                                        let braceCount = 0;
+                                        let endIndex = -1;
+                                        for (let i = startIndex; i < jsonString.length; i++) {
+                                            if (jsonString[i] === '{') braceCount++;
+                                            else if (jsonString[i] === '}') {
+                                                braceCount--;
+                                                if (braceCount === 0) {
+                                                    endIndex = i;
+                                                    break;
+                                                }
+                                            }
+                                        }
+                                        if (endIndex !== -1) {
+                                            jsonString = jsonString.substring(startIndex, endIndex + 1);
+                                        }
+                                    }
+                                    
+                                    const parsedComparison = JSON.parse(jsonString.trim());
+                                    if (parsedComparison.sideA && parsedComparison.sideB) {
+                                        messageObj.comparisonData = parsedComparison;
+                                        // Extract sources if available
+                                        if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
+                                            messageObj.citations = parsedComparison.sources;
+                                        }
+                                    }
+                                } catch (e) {
+                                    // If parsing fails, just use the text as-is
+                                    console.error("Error parsing comparison data from message:", e);
+                                }
+                            }
                         }
                     }
 
@@ -803,16 +853,30 @@ export default function NutritionLM() {
     };
 
     const extractFirstJson = (text) => {
-        const startIndex = text.indexOf('{');
+        if (!text) return null;
+        
+        let jsonString = text;
+        
+        // Try to extract JSON from markdown code blocks
+        const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+            jsonString = jsonMatch[1];
+        } else {
+            // Fallback: strip leading/trailing backticks and "json" label if present
+            jsonString = text.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+        }
+        
+        // Find the first { and extract balanced JSON
+        const startIndex = jsonString.indexOf('{');
         if (startIndex === -1) return null;
     
         let braceCount = 0;
         let endIndex = -1;
     
-        for (let i = startIndex; i < text.length; i++) {
-            if (text[i] === '{') {
+        for (let i = startIndex; i < jsonString.length; i++) {
+            if (jsonString[i] === '{') {
                 braceCount++;
-            } else if (text[i] === '}') {
+            } else if (jsonString[i] === '}') {
                 braceCount--;
                 if (braceCount === 0) {
                     endIndex = i;
@@ -822,7 +886,7 @@ export default function NutritionLM() {
         }
     
         if (endIndex !== -1) {
-            return text.substring(startIndex, endIndex + 1);
+            return jsonString.substring(startIndex, endIndex + 1);
         }
         return null;
     };
@@ -967,19 +1031,28 @@ export default function NutritionLM() {
             let parsedComparison = null;
 
             if (data.isComparison) {
-                try {
-                    const cleanJsonString = extractFirstJson(data.reply);
-                    
-                    if (cleanJsonString) {
-                        parsedComparison = JSON.parse(cleanJsonString);
+                // Use comparisonData from API if available (new format)
+                if (data.comparisonData) {
+                    parsedComparison = data.comparisonData;
+                    if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
+                        finalCitations = parsedComparison.sources;
+                    }
+                } else {
+                    // Fallback: try to parse from reply (for backward compatibility)
+                    try {
+                        const cleanJsonString = extractFirstJson(data.reply);
                         
-                        if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
-                            finalCitations = parsedComparison.sources;
-                        }
-                    } 
-                } catch (e) {
-                    console.error("JSON Parse Error:", e);
-                    parsedComparison = null; 
+                        if (cleanJsonString) {
+                            parsedComparison = JSON.parse(cleanJsonString);
+                            
+                            if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
+                                finalCitations = parsedComparison.sources;
+                            }
+                        } 
+                    } catch (e) {
+                        console.error("JSON Parse Error:", e);
+                        parsedComparison = null; 
+                    }
                 }
             }
 
