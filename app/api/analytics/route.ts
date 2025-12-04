@@ -28,14 +28,17 @@ export async function GET(request: NextRequest) {
         }
 
         // Process data for graph (group by date)
+        // Use UTC dates to match record_date format (YYYY-MM-DD in UTC)
         const dailyData: Record<string, { date: string; count: number; healthy: boolean }> = {};
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        // Get today's date in UTC (matching how record_date is stored)
+        const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
+        const todayStr = todayUTC.toISOString().split('T')[0];
 
-        // Initialize last 30 days with 0
+        // Initialize last 30 days with 0 (using UTC dates)
         for (let i = 29; i >= 0; i--) {
-            const date = new Date(today);
-            date.setDate(date.getDate() - i);
+            const date = new Date(todayUTC);
+            date.setUTCDate(date.getUTCDate() - i);
             const dateStr = date.toISOString().split('T')[0];
             dailyData[dateStr] = {
                 date: dateStr,
@@ -68,8 +71,10 @@ export async function GET(request: NextRequest) {
         const graphData = Object.values(dailyData);
 
         // Calculate food log streak (consecutive days with at least one log)
+        // Start from today and count backwards - today counts as day 1 if it has logs
+        // Use UTC dates to match record_date format
         let foodLogStreak = 0;
-        let currentDate = new Date(today);
+        let currentDate = new Date(todayUTC);
         
         while (true) {
             const dateStr = currentDate.toISOString().split('T')[0];
@@ -77,15 +82,19 @@ export async function GET(request: NextRequest) {
             
             if (dayData && dayData.count > 0) {
                 foodLogStreak++;
-                currentDate.setDate(currentDate.getDate() - 1);
+                // Move to previous day (in UTC)
+                currentDate.setUTCDate(currentDate.getUTCDate() - 1);
             } else {
+                // Stop if we hit a day with no logs
                 break;
             }
         }
 
         // Calculate healthy food streak (consecutive days with healthy food)
+        // Start from today and count backwards - today counts as day 1 if it has healthy food
+        // Use UTC dates to match record_date format
         let healthyFoodStreak = 0;
-        currentDate = new Date(today);
+        currentDate = new Date(todayUTC);
         
         while (true) {
             const dateStr = currentDate.toISOString().split('T')[0];
@@ -93,8 +102,10 @@ export async function GET(request: NextRequest) {
             
             if (dayData && dayData.healthy) {
                 healthyFoodStreak++;
-                currentDate.setDate(currentDate.getDate() - 1);
+                // Move to previous day (in UTC)
+                currentDate.setUTCDate(currentDate.getUTCDate() - 1);
             } else {
+                // Stop if we hit a day without healthy food
                 break;
             }
         }
