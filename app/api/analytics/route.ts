@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
 
         // Process data for graph (group by date)
         // Use UTC dates to match record_date format (YYYY-MM-DD in UTC)
-        const dailyData: Record<string, { date: string; count: number; healthy: boolean }> = {};
+        const dailyData: Record<string, { date: string; count: number; healthy: boolean; healthLevelSum: number; healthLevelCount: number }> = {};
         const today = new Date();
         // Get today's date in UTC (matching how record_date is stored)
         const todayUTC = new Date(Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate()));
@@ -43,7 +43,9 @@ export async function GET(request: NextRequest) {
             dailyData[dateStr] = {
                 date: dateStr,
                 count: 0,
-                healthy: false
+                healthy: false,
+                healthLevelSum: 0,
+                healthLevelCount: 0
             };
         }
 
@@ -52,6 +54,15 @@ export async function GET(request: NextRequest) {
             const dateStr = log.record_date;
             if (dailyData[dateStr]) {
                 dailyData[dateStr].count += 1;
+                
+                // Track healthy_level for average calculation
+                if (log.healthy_level !== null && log.healthy_level !== undefined) {
+                    const healthLevel = Number(log.healthy_level);
+                    if (!isNaN(healthLevel)) {
+                        dailyData[dateStr].healthLevelSum += healthLevel;
+                        dailyData[dateStr].healthLevelCount += 1;
+                    }
+                }
                 
                 // Determine if food is healthy based on nutrition data
                 // Consider healthy if nutrition exists and has reasonable values
@@ -68,7 +79,13 @@ export async function GET(request: NextRequest) {
             }
         });
 
-        const graphData = Object.values(dailyData);
+        // Calculate average health_level per day
+        const graphData = Object.values(dailyData).map(day => ({
+            ...day,
+            avgHealthLevel: day.healthLevelCount > 0 
+                ? Number((day.healthLevelSum / day.healthLevelCount).toFixed(1))
+                : null
+        }));
 
         // Calculate food log streak (consecutive days with at least one log)
         // Start from today and count backwards - today counts as day 1 if it has logs
