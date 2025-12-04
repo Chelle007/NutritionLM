@@ -352,13 +352,63 @@ export async function POST(req: NextRequest) {
       console.warn("Fact Check mode: No citations found in grounding metadata. Model may not have used Google Search tool.");
     }
 
-    // 13. Save AI response to database
+    // 13. Parse comparison data if in compare mode
+    let parsedComparison = null;
+    if (compare) {
+      try {
+        let jsonString = responseText;
+        
+        // Try to extract JSON from markdown code blocks
+        const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonString = jsonMatch[1];
+        } else {
+          // Fallback: strip leading/trailing backticks and "json" label if present
+          jsonString = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
+        }
+        
+        // Find balanced JSON object using brace counting
+        const startIndex = jsonString.indexOf('{');
+        if (startIndex !== -1) {
+          let braceCount = 0;
+          let endIndex = -1;
+          for (let i = startIndex; i < jsonString.length; i++) {
+            if (jsonString[i] === '{') braceCount++;
+            else if (jsonString[i] === '}') {
+              braceCount--;
+              if (braceCount === 0) {
+                endIndex = i;
+                break;
+              }
+            }
+          }
+          if (endIndex !== -1) {
+            jsonString = jsonString.substring(startIndex, endIndex + 1);
+          }
+        }
+        
+        const cleanedJson = jsonString.trim();
+        parsedComparison = JSON.parse(cleanedJson);
+        // Extract sources from comparison data if available
+        if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
+          citations = parsedComparison.sources;
+        }
+      } catch (e) {
+        console.error("Error parsing comparison JSON:", e);
+        // If parsing fails, parsedComparison remains null
+      }
+    }
+
+    // 14. Save AI response to database
     const metadata: any = {};
     if (citations.length > 0) {
       metadata.citations = citations;
     }
     if (compare) {
       metadata.isComparison = true;
+      if (parsedComparison) {
+        metadata.comparisonData = parsedComparison;
+      }
     }
     if (factCheck) {
       metadata.isFactCheck = true;
@@ -406,10 +456,11 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ 
-        reply: responseText, 
+        reply: parsedComparison ? parsedComparison.summary : responseText, 
         isComparison: compare,
         citations: citations,
-        chatSessionId: sessionId
+        chatSessionId: sessionId,
+        comparisonData: parsedComparison || undefined
     });
 
   } catch (error: any) {
