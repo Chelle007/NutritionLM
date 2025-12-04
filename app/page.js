@@ -1067,6 +1067,7 @@ export default function NutritionLM() {
                         setSelectedFoodLog(null);
                     }}
                     foodLog={selectedFoodLog}
+                    onAddToInput={setAttachment}
                 />
 
 
