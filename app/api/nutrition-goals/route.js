@@ -1,4 +1,5 @@
 import { insertNutritionGoals } from '../../../services/userPreference';
+import { createClient } from '../../utils/supabase/server';
 
 // Example request body:
 // {
@@ -13,6 +14,18 @@ import { insertNutritionGoals } from '../../../services/userPreference';
 // }
 export async function POST(request) {
   try {
+    // Use server-side Supabase client for API routes
+    const supabase = await createClient();
+    
+    // Get authenticated user
+    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    if (authError || !user) {
+      return Response.json(
+        { error: "User not authenticated" },
+        { status: 401 }
+      );
+    }
+
     const body = await request.json();
     const { nutrition_goals } = body;
 
@@ -23,7 +36,8 @@ export async function POST(request) {
       );
     }
 
-    const result = await insertNutritionGoals(nutrition_goals);
+    // Pass supabase and user to insertNutritionGoals for server-side operation
+    const result = await insertNutritionGoals(nutrition_goals, supabase, user);
     if (!result) {
       return Response.json(
         { error: "Failed to save nutrition goals" },
