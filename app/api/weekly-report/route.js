@@ -1,5 +1,5 @@
 import { createClient } from '../../utils/supabase/server';
-import { getLastWeekFoodLogs, getLastWeekDateRange } from '../../../services/foodLog';
+import { getLast7DaysFoodLogs, getLast7DaysDateRange } from '../../../services/foodLog';
 import { getUserPreferenceServer } from '../../../services/userPreference';
 
 // Calculate average nutrition intake from food logs
@@ -62,7 +62,7 @@ function calculateAverageNutrition(foodLogs) {
 //   },
 //   "foodLogs": [],
 //   "nutritionGoals": {},
-//   "last_week_nutrition_intake_avg": {
+//   "last_7_days_nutrition_intake_avg": {
 //     "protein": 0,
 //     "carbohydrates": 0,
 //     "fats": 0,
@@ -89,11 +89,11 @@ export async function GET() {
       );
     }
 
-    // Get date range for last week
-    const dateRange = getLastWeekDateRange();
+    // Get date range for last 7 days
+    const dateRange = getLast7DaysDateRange();
 
-    // Get food logs for last week
-    const foodLogs = await getLastWeekFoodLogs(supabase, user);
+    // Get food logs for last 7 days
+    const foodLogs = await getLast7DaysFoodLogs(supabase, user);
     
     if (foodLogs === null) {
       return Response.json(
@@ -117,8 +117,8 @@ export async function GET() {
       ? userPreference[0].nutrition_goals 
       : null;
 
-    // Calculate average nutrition intake for last week
-    const lastWeekNutritionIntakeAvg = calculateAverageNutrition(foodLogs || []);
+    // Calculate average nutrition intake for last 7 days
+    const last7DaysNutritionIntakeAvg = calculateAverageNutrition(foodLogs || []);
 
     // Return weekly report
     return Response.json({
@@ -128,7 +128,7 @@ export async function GET() {
       },
       foodLogs: foodLogs || [],
       nutritionGoals: nutritionGoals,
-      last_week_nutrition_intake_avg: lastWeekNutritionIntakeAvg,
+      last_7_days_nutrition_intake_avg: last7DaysNutritionIntakeAvg,
       summary: {
         totalLogs: foodLogs?.length || 0,
         daysWithLogs: foodLogs ? new Set(foodLogs.map(log => log.record_date)).size : 0
