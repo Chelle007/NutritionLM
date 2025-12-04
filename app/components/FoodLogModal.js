@@ -3,13 +3,33 @@
 import React from 'react';
 import { 
     COLOR_SECONDARY_LIGHT,
-    COLOR_ACCENT_DARK
+    COLOR_ACCENT_DARK,
+    COLOR_PRIMARY
 } from '../constants/colors';
-import { X, Utensils, Calendar, Clock, List, Apple } from 'lucide-react';
+import { X, Utensils, Calendar, Clock, List, Apple, Plus } from 'lucide-react';
 import Image from 'next/image';
 
-export default function FoodLogModal({ isOpen, onClose, foodLog }) {
+export default function FoodLogModal({ isOpen, onClose, foodLog, onAddToInput }) {
     if (!isOpen || !foodLog) return null;
+
+    const handleAddToInput = async () => {
+        if (!foodLog.image_url || !onAddToInput) return;
+        
+        try {
+            // Convert image URL to File object
+            const response = await fetch(foodLog.image_url);
+            const blob = await response.blob();
+            const file = new File([blob], "food-log-image.jpg", { type: blob.type });
+            
+            // Call the callback with the file and preview
+            onAddToInput({ file, preview: foodLog.image_url });
+            
+            // Close the modal
+            onClose();
+        } catch (error) {
+            console.error('Error adding image to input:', error);
+        }
+    };
 
     const formatDate = (dateString) => {
         if (!dateString) return 'Not available';
@@ -222,6 +242,26 @@ export default function FoodLogModal({ isOpen, onClose, foodLog }) {
                         </div>
                     </div>
                 </div>
+
+                {/* Action Button */}
+                {foodLog.image_url && onAddToInput && (
+                    <div className="border-t border-gray-200 p-4 lg:p-6">
+                        <button
+                            onClick={handleAddToInput}
+                            className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-colors shadow-md hover:shadow-lg"
+                            style={{ backgroundColor: COLOR_PRIMARY }}
+                            onMouseEnter={(e) => {
+                                e.currentTarget.style.opacity = '0.9';
+                            }}
+                            onMouseLeave={(e) => {
+                                e.currentTarget.style.opacity = '1';
+                            }}
+                        >
+                            <Plus className="w-5 h-5" />
+                            Add to Input Area
+                        </button>
+                    </div>
+                )}
             </div>
         </div>
     );
