@@ -7,11 +7,7 @@ export async function GET(request: Request) {
   const { searchParams, origin } = new URL(request.url)
   const code = searchParams.get('code')
   // if "next" is in param, use it as the redirect URL
-  let next = searchParams.get('next') ?? '/'
-  if (!next.startsWith('/')) {
-    // if "next" is not a relative URL, use the default
-    next = '/'
-  }
+  let next = searchParams.get('next') ?? null
 
   if (code) {
     const supabase = await createClient()
@@ -31,13 +27,13 @@ export async function GET(request: Request) {
         if (!existingUser && !checkError) {
           const userData = {
             id: user.id,
-            full_name: user.user_metadata?.full_name || 
-                      user.user_metadata?.name || 
-                      user.user_metadata?.display_name || 
-                      null,
-            avatar_url: user.user_metadata?.avatar_url || 
-                       user.user_metadata?.picture || 
-                       null,
+            full_name: user.user_metadata?.full_name ||
+              user.user_metadata?.name ||
+              user.user_metadata?.display_name ||
+              null,
+            avatar_url: user.user_metadata?.avatar_url ||
+              user.user_metadata?.picture ||
+              null,
             telegram_chat_id: null,
           }
 
@@ -52,18 +48,40 @@ export async function GET(request: Request) {
             console.log('Created user record:', user.id)
           }
         }
-      }
 
-      const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
-      const isLocalEnv = process.env.NODE_ENV === 'development'
-      if (isLocalEnv) {
-        // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
-        return NextResponse.redirect(`${origin}${next}`)
-      } else if (forwardedHost) {
-        return NextResponse.redirect(`https://${forwardedHost}${next}`)
+        // Check if user has completed onboarding by checking for user preferences
+        // If "next" param is explicitly provided, use it; otherwise determine based on onboarding status
+        if (!next) {
+          const { data: userPreferences } = await supabase
+            .from('user_preferences')
+            .select('id')
+            .eq('user_id', user.id)
+            .limit(1)
+
+          // New user (no preferences) -> redirect to onboarding
+          // Existing user (has preferences) -> redirect to home
+          next = userPreferences && userPreferences.length > 0 ? '/' : '/onboarding'
+        }
       } else {
-        return NextResponse.redirect(`${origin}${next}`)
+        // If no user, default to home
+        next = next || '/'
       }
+    }
+
+    // Validate next path for security
+    if (!next.startsWith('/')) {
+      next = '/'
+    }
+
+    const forwardedHost = request.headers.get('x-forwarded-host') // original origin before load balancer
+    const isLocalEnv = process.env.NODE_ENV === 'development'
+    if (isLocalEnv) {
+      // we can be sure that there is no load balancer in between, so no need to watch for X-Forwarded-Host
+      return NextResponse.redirect(`${origin}${next}`)
+    } else if (forwardedHost) {
+      return NextResponse.redirect(`https://${forwardedHost}${next}`)
+    } else {
+      return NextResponse.redirect(`${origin}${next}`)
     }
   }
 
