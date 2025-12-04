@@ -65,8 +65,9 @@ NutritionLM is an AI-powered nutrition assistant that helps users track, underst
 ### Prerequisites
 
 - Node.js 18+ and npm
-- Supabase project
+- Supabase project (with Google OAuth provider configured)
 - Google Gemini API key
+- Google OAuth credentials (optional, for Google Fit integration)
 
 ### Installation
 
@@ -90,27 +91,23 @@ Create a `.env.local` file at the project root:
 ```bash
 # Supabase
 NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key  # Same as ANON_KEY
+NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=your_supabase_anon_key
 SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
 
 # Google Gemini
 GEMINI_API_KEY=your_gemini_api_key
 
 # Google Fit OAuth (optional)
-GOOGLE_FIT_CLIENT_ID=your_google_fit_client_id
-GOOGLE_FIT_CLIENT_SECRET=your_google_fit_client_secret
+GOOGLE_CLIENT_ID=your_google_client_id
+GOOGLE_CLIENT_SECRET=your_google_client_secret
 GOOGLE_FIT_REDIRECT_URI=http://localhost:3000/api/google-fit/callback
 ```
 
 4. **Set up the database**
 
-Run the SQL schema files from the `db/` directory in your Supabase SQL editor:
-- `schema_v1.sql` (base schema)
-- `schema_v2.sql`, `schema_v3.sql`, `schema_v4.sql` (migrations)
-- `schema_v5_chat_sessions.sql` (chat sessions schema)
+Run the SQL schema file from the `db/` directory in your Supabase SQL editor:
 
-See `RAG_SETUP.md` for vector search setup if using document upload features.
+- `db/schema.sql` - Complete database schema
 
 5. **Run the development server**
 
@@ -164,20 +161,6 @@ nutritionlm/
 
 ---
 
-## API Documentation
-
-For detailed API documentation, see [API_DOCUMENTATION.md](./API_DOCUMENTATION.md).
-
-Key endpoints:
-- `POST /api/chat` - AI chat interactions
-- `POST /api/food-log` - Log food from image
-- `POST /api/ingredients` - Extract ingredients from image
-- `POST /api/sources` - Upload/manage documents
-- `GET /api/weekly-report` - Get weekly nutrition report
-- `GET /api/analytics` - Get analytics data
-
----
-
 ## Deployment
 
 ### Web App (Vercel)
@@ -196,14 +179,12 @@ The Telegram bot is deployed separately on Render:
 
 ---
 
-## Related Documentation
+## Documentation
 
 - [API Documentation](./API_DOCUMENTATION.md) - Complete API reference
-- [RAG Setup](./RAG_SETUP.md) - Document upload and vector search setup
 
 ---
 
-## License
+## Credit
 
-[Add license information if applicable]
-
+Made with ❤️ by Cool Beans
