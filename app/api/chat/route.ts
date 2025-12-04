@@ -55,16 +55,34 @@ function isFoodNutritionRelated(message: string): boolean {
     
     // Common nutrition questions
     'how much', 'how many calories', 'is healthy', 'is good for', 'benefits of', 'effects of',
-    'source of', 'rich in', 'contains', 'has', 'provide', 'provides'
+    'source of', 'rich in', 'contains', 'has', 'provide', 'provides',
+    
+    // Action words in nutrition context
+    'count', 'show', 'list', 'display', 'get my', 'tell me my'
   ];
   
   // Check if message contains food/nutrition keywords first
   const hasFoodKeyword = foodNutritionKeywords.some(keyword => lowerMessage.includes(keyword));
   
+  // Action words that are commonly used with nutrition queries (should be allowed)
+  const nutritionActionWords = ['count', 'show', 'list', 'get', 'tell', 'what', 'how many', 'how much', 'display', 'find'];
+  
+  // Special patterns for nutrition queries (e.g., "how many nutrition", "count my nutrition", "can u count how many nutrition i have")
+  const nutritionQueryPatterns = [
+    /\b(how many|how much|count|show|list|get|tell)\s+.*?\b(nutrition|nutrient|food|meal|diet|calorie|macro)\b/i,
+    /\b(count|show|list|get|tell)\s+(my|i|me)\s+.*?\b(nutrition|nutrient|food|meal|diet|calorie|macro)\b/i,
+    /\b(my|i|me)\s+.*?\b(nutrition|nutrient|food|meal|diet|calorie|macro)\b/i,
+    /\b(nutrition|nutrient|food|meal|diet|calorie|macro)\b.*?\b(count|show|list|get|tell|how many|how much)\b/i
+  ];
+  const matchesNutritionPattern = nutritionQueryPatterns.some(pattern => pattern.test(lowerMessage));
+  
+  // If message contains nutrition keywords OR nutrition action words, it's likely nutrition-related
+  const hasNutritionAction = nutritionActionWords.some(word => lowerMessage.includes(word));
+  
   // Non-food/nutrition topics that should be rejected
   const nonFoodTopics = [
     // Math and science
-    'solve', 'calculate', 'equation', 'formula', 'math', 'mathematics', 'algebra', 'calculus', 'geometry',
+    'solve', 'equation', 'formula', 'math', 'mathematics', 'algebra', 'calculus', 'geometry',
     'physics', 'chemistry', 'biology', 'science', 'experiment', 'hypothesis', 'theory',
     
     // Programming and tech
@@ -83,6 +101,27 @@ function isFoodNutritionRelated(message: string): boolean {
   const mathPattern = /\d+\s*[+\-*/]\s*\d+|\b(solve|calculate|compute)\s+\d+/i;
   if (mathPattern.test(lowerMessage) && !hasFoodKeyword) {
     return false;
+  }
+  
+  // If it matches nutrition query patterns, it's definitely related
+  if (matchesNutritionPattern) {
+    return true;
+  }
+  
+  // If it has food keywords, it's definitely related
+  if (hasFoodKeyword) {
+    return true;
+  }
+  
+  // If it has nutrition action words AND seems nutrition-related (contains "my", "i", personal pronouns, or nutrition-related terms)
+  if (hasNutritionAction) {
+    const personalContext = /\b(my|i|me|myself|mine)\b/i.test(lowerMessage);
+    const nutritionContext = lowerMessage.includes('nutrition') || lowerMessage.includes('diet') || 
+                            lowerMessage.includes('food') || lowerMessage.includes('meal') ||
+                            lowerMessage.includes('calorie') || lowerMessage.includes('macro');
+    if (personalContext || nutritionContext) {
+      return true;
+    }
   }
   
   // Check for explicit non-food topics
@@ -109,11 +148,6 @@ function isFoodNutritionRelated(message: string): boolean {
         return false;
       }
     }
-  }
-  
-  // If it has food keywords, it's related
-  if (hasFoodKeyword) {
-    return true;
   }
   
   // For very short messages or ambiguous queries, be more lenient
