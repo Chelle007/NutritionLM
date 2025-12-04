@@ -130,6 +130,7 @@ export default function AnalyticsPage() {
                     throw new Error('Failed to fetch analytics');
                 }
                 const analyticsData = await analyticsResponse.json();
+                console.log('📊 Analytics API Response:', analyticsData);
                 setGraphData(analyticsData.graphData || []);
                 setFoodLogStreak(analyticsData.foodLogStreak || 0);
                 setHealthyFoodStreak(analyticsData.healthyFoodStreak || 0);
@@ -143,6 +144,9 @@ export default function AnalyticsPage() {
                     throw new Error('Failed to fetch weekly report');
                 }
                 const weeklyReportData = await weeklyReportResponse.json();
+                console.log('📈 Weekly Report API Response:', weeklyReportData);
+                // console.log('🥗 Nutrition Average:', weeklyReportData.last_7_days_nutrition_intake_avg);
+                // console.log('🎯 Nutrition Goals:', weeklyReportData.nutritionGoals);
                 const nutritionAvg = weeklyReportData.last_7_days_nutrition_intake_avg || {};
                 setLoggedNutrition({
                     carbs: Number(nutritionAvg.carbohydrates ?? 0), 
@@ -161,6 +165,9 @@ export default function AnalyticsPage() {
                     .select('weight_kg, height_cm')
                     .eq('user_id', user.id)
                     .single();
+
+                // console.log('👤 User Preferences (BMI):', profile);
+                // console.log('❌ Profile Error:', profileError);
 
                     if (profileError) {
                     console.error(
