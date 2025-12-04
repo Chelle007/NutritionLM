@@ -282,10 +282,33 @@ export default function AnalyticsPage() {
                         <div className="bg-white rounded-2xl p-4 md:p-6 shadow-lg border overflow-hidden transition-shadow" style={{ borderColor: 'rgba(52, 73, 94, 0.1)' }}>
                             <div className="flex flex-col md:flex-row items-center md:justify-between gap-4 md:gap-0">
                                 {/* Health Emoji - Top on mobile, right on desktop */}
-                                <div className="flex items-center justify-center order-first md:order-last md:ml-8">
+                                <div className="flex flex-col items-center justify-center order-first md:order-last md:ml-8">
                                     <div className="text-7xl md:text-6xl">
                                         {getHealthEmoji(mostRecentHealthLevel)}
                                     </div>
+                                    {mostRecentHealthLevel !== null && mostRecentHealthLevel !== undefined && (
+                                        <div className="mt-2 text-center">
+                                            <p className="text-xs text-gray-500 mb-1">Health Score</p>
+                                            <div className="flex items-center gap-2">
+                                                <div className="flex-1 bg-gray-200 rounded-full h-2 w-24 overflow-hidden">
+                                                    <div 
+                                                        className="h-full rounded-full transition-all"
+                                                        style={{ 
+                                                            width: `${mostRecentHealthLevel}%`,
+                                                            backgroundColor: mostRecentHealthLevel >= 70 
+                                                                ? '#4CAF50' 
+                                                                : mostRecentHealthLevel >= 40 
+                                                                    ? '#FF9800' 
+                                                                    : '#F44336'
+                                                        }}
+                                                    />
+                                                </div>
+                                                <span className="text-sm font-semibold" style={{ color: COLOR_ACCENT_DARK }}>
+                                                    {mostRecentHealthLevel}/100
+                                                </span>
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* Food Log Streak - Left */}

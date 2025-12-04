@@ -146,6 +146,7 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
     // Step 3: Get nutrition data
     // Call Gemini API directly instead of making HTTP fetch
     let nutritions: any = {};
+    let healthyLevel: number | null = null;
     
     try {
       const nutritionModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
@@ -180,7 +181,14 @@ Example format:
         const jsonMatch = nutritionCaption.match(/```(?:json)?\s*([\s\S]*?)```/);
         const jsonString = jsonMatch ? jsonMatch[1] : nutritionCaption;
         const cleanedJson = jsonString.trim();
-        nutritions = JSON.parse(cleanedJson);
+        const parsedNutrition = JSON.parse(cleanedJson);
+        
+        // Extract healthy_level from the response
+        healthyLevel = parsedNutrition.healthy_level ?? null;
+        
+        // Remove healthy_level from nutritions object since it's stored separately
+        const { healthy_level, ...nutritionData } = parsedNutrition;
+        nutritions = nutritionData;
       } catch (parseError) {
         console.error('Error parsing JSON from Gemini response (nutrition):', parseError);
         return NextResponse.json(
@@ -205,6 +213,7 @@ Example format:
         food_name: foodName,
         ingredients: ingredients,
         nutrition: nutritions,
+        healthy_level: healthyLevel,
         record_date: new Date().toISOString().split('T')[0],
         record_time: new Date().toTimeString().split(' ')[0],
       })
@@ -225,6 +234,7 @@ Example format:
       foodName: foodName,
       ingredients: ingredients,
       nutrition: nutritions,
+      healthy_level: healthyLevel,
     });
   } catch (error: any) {
     console.error('Food log API error:', error);
