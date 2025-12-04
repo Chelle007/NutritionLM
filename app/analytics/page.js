@@ -186,11 +186,11 @@ export default function AnalyticsPage() {
                         const rounded = Number(computedBmi.toFixed(1));
                         setBmi(rounded);
 
-                        // BMI category logic
+                        // BMI category logic (WHO standard categories)
                         let category;
                         if (rounded < 18.5)       category = 'Underweight';
-                        else if (rounded < 23)    category = 'Normal';
-                        else if (rounded < 27.5)  category = 'Overweight';
+                        else if (rounded < 25)    category = 'Normal';
+                        else if (rounded < 30)    category = 'Overweight';
                         else                      category = 'Obese';
 
                         setBmiCategory(category);
