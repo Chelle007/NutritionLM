@@ -17,7 +17,7 @@
 ## ✨ Features
 
 ### 🤖 AI Nutritionist Chat
-Chat with an intelligent AI nutritionist powered by Google Gemini 2.0. Get personalized advice, verify nutrition claims with authoritative sources, and compare different perspectives side-by-side. Upload food images for instant ingredient detection and analysis, with answers informed by your own uploaded documents.
+Chat with an intelligent AI nutritionist powered by Google Gemini. Get personalized advice, verify nutrition claims with authoritative sources, and compare different perspectives side-by-side. Upload food images for instant ingredient detection and analysis, with answers informed by your own uploaded documents.
 
 ### 📸 Smart Food Logging
 Snap a photo of your meal and let AI extract ingredients automatically. Get detailed nutrition breakdowns including macros, vitamins, minerals, and fiber. Each food receives a healthiness score (0-100) and is saved to your searchable food history.
@@ -43,7 +43,7 @@ Complete an onboarding flow to set your nutrition goals, dietary preferences, an
 |----------|-----------|
 | **Framework** | Next.js 16 (App Router) |
 | **Frontend** | React 19 |
-| **AI** | Google Gemini 2.0 Flash/Pro |
+| **AI** | Google Gemini (env-configurable via `@google/genai`) |
 | **Database** | Supabase (PostgreSQL) |
 | **Auth** | Supabase Auth (Google OAuth) |
 | **Styling** | Tailwind CSS 4 |
@@ -86,6 +86,8 @@ Complete an onboarding flow to set your nutrition goals, dietary preferences, an
 
    # Google Gemini
    GEMINI_API_KEY=your_gemini_api_key
+   GEMINI_MODEL_PRIMARY=gemini-3.5-flash
+   GEMINI_MODEL_FAST=gemini-3.1-flash-lite
 
    # Google Fit OAuth (optional)
    GOOGLE_CLIENT_ID=your_google_client_id

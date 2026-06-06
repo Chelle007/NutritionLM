@@ -1,6 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '../../utils/supabase/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import {
+  generatePrimaryContent,
+  generateFastJson,
+  getResponseText,
+  parseJsonFromResponse,
+  getErrorResponse,
+} from '../../../services/geminiClient';
 
 export async function POST(req: NextRequest) {
   try {
@@ -41,8 +47,6 @@ export async function POST(req: NextRequest) {
 
     if (uploadError) {
       console.error('Upload error:', uploadError);
-      // If bucket doesn't exist, try to create it or use a different approach
-      // For now, we'll continue without the image URL if upload fails
       console.warn('Image upload failed, continuing without image URL');
     }
 
@@ -56,30 +60,14 @@ export async function POST(req: NextRequest) {
     }
 
     // Step 2: Scan ingredients from image
-    // Call Gemini API directly instead of making HTTP fetch
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return NextResponse.json(
-        { error: 'GEMINI_API_KEY is not set on the server' },
-        { status: 500 }
-      );
-    }
-
-    // Initialize Gemini AI (reused for both ingredients and nutrition)
-    const genAI = new GoogleGenerativeAI(apiKey);
-
     let foodName: string;
     let ingredients: string[];
 
     try {
-      // Convert buffer to base64
       const base64Image = buffer.toString('base64');
       const mimeType = imageFile.type || 'image/jpeg';
 
-      const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-      // Prepare the parts array with image and prompt
-      const parts: any[] = [
+      const contents = [
         {
           inlineData: {
             mimeType: mimeType,
@@ -101,22 +89,13 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
         },
       ];
 
-      // Generate caption using Gemini
-      const result = await model.generateContent(parts);
-      const response = await result.response;
-      const caption = response.text();
+      const response = await generatePrimaryContent({ contents });
+      const caption = getResponseText(response);
       console.log('response from gemini:', caption);
 
-      // Parse JSON from markdown code blocks or plain text
-      let parsedData: any = null;
+      let parsedData: any;
       try {
-        // Try to extract JSON from markdown code blocks (```json ... ```)
-        const jsonMatch = caption.match(/```(?:json)?\s*([\s\S]*?)```/);
-        const jsonString = jsonMatch ? jsonMatch[1] : caption;
-        
-        // Clean up the string and parse JSON
-        const cleanedJson = jsonString.trim();
-        parsedData = JSON.parse(cleanedJson);
+        parsedData = parseJsonFromResponse(caption);
       } catch (parseError) {
         console.error('Error parsing JSON from Gemini response:', parseError);
         return NextResponse.json(
@@ -137,23 +116,19 @@ ONLY RESPOND WITH THE JSON FORMAT. For example:
 
     } catch (scanError: any) {
       console.error('Error scanning ingredients:', scanError);
+      const { message, status } = getErrorResponse(scanError);
       return NextResponse.json(
-        { error: `Failed to scan ingredients: ${scanError.message || 'Unknown error'}` },
-        { status: 500 }
+        { error: `Failed to scan ingredients: ${message}` },
+        { status }
       );
     }
 
     // Step 3: Get nutrition data
-    // Call Gemini API directly instead of making HTTP fetch
     let nutritions: any = {};
     let healthyLevel: number | null = null;
     
     try {
-      const nutritionModel = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
-      
-      const nutritionParts: any[] = [
-        {
-          text: `The food name is "${foodName}". The ingredients are: ${ingredients.join(", ")}.
+      const nutritionPrompt = `The food name is "${foodName}". The ingredients are: ${ingredients.join(", ")}.
 
 ONLY RESPOND WITH THE JSON FORMAT AND NO EXPLANATION. 
 Provide 6 types of nutritions as specified below and its estimated grams of each nutrition the food, and also assess the overall healthiness level on a scale of 0-100 (where 100 is the healthiest):
@@ -167,40 +142,20 @@ Example format:
   "minerals": 0.4,
   "fiber": 80,
   "healthy_level": 75
-}`,
-        },
-      ];
+}`;
 
-      const nutritionResult = await nutritionModel.generateContent(nutritionParts);
-      const nutritionResponse = await nutritionResult.response;
-      const nutritionCaption = nutritionResponse.text();
-      console.log('result from gemini (nutrition):', nutritionCaption);
+      const parsedNutrition = await generateFastJson(nutritionPrompt) as Record<string, number>;
+      console.log('result from gemini (nutrition):', parsedNutrition);
 
-      // Parse JSON from markdown code blocks or plain text
-      try {
-        const jsonMatch = nutritionCaption.match(/```(?:json)?\s*([\s\S]*?)```/);
-        const jsonString = jsonMatch ? jsonMatch[1] : nutritionCaption;
-        const cleanedJson = jsonString.trim();
-        const parsedNutrition = JSON.parse(cleanedJson);
-        
-        // Extract healthy_level from the response
-        healthyLevel = parsedNutrition.healthy_level ?? null;
-        
-        // Remove healthy_level from nutritions object since it's stored separately
-        const { healthy_level, ...nutritionData } = parsedNutrition;
-        nutritions = nutritionData;
-      } catch (parseError) {
-        console.error('Error parsing JSON from Gemini response (nutrition):', parseError);
-        return NextResponse.json(
-          { error: 'Failed to parse nutrition data from AI response' },
-          { status: 500 }
-        );
-      }
+      healthyLevel = parsedNutrition.healthy_level ?? null;
+      const { healthy_level, ...nutritionData } = parsedNutrition;
+      nutritions = nutritionData;
     } catch (nutritionError: any) {
       console.error('Error getting nutrition data:', nutritionError);
+      const { message, status } = getErrorResponse(nutritionError);
       return NextResponse.json(
-        { error: `Failed to get nutrition data: ${nutritionError.message || 'Unknown error'}` },
-        { status: 500 }
+        { error: `Failed to get nutrition data: ${message}` },
+        { status }
       );
     }
 
@@ -238,10 +193,7 @@ Example format:
     });
   } catch (error: any) {
     console.error('Food log API error:', error);
-    return NextResponse.json(
-      { error: error.message || 'Internal server error' },
-      { status: 500 }
-    );
+    const { message, status } = getErrorResponse(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }
-

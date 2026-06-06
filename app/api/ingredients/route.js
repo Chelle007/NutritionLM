@@ -1,18 +1,13 @@
 // [START] documentation reference: https://ai.google.dev/gemini-api/docs/image-understanding
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import {
+  generatePrimaryContent,
+  getResponseText,
+  parseJsonFromResponse,
+  getErrorResponse,
+} from "../../../services/geminiClient";
 
 export async function POST(request) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    
-    // Check if API key exists
-    if (!apiKey) {
-      return Response.json(
-        { error: "GEMINI_API_KEY is not set on the server." },
-        { status: 500 }
-      );
-    }
-
     // Get the image from the request (can be FormData or JSON with base64)
     const formData = await request.formData();
     const imageFile = formData.get("image");
@@ -33,12 +28,8 @@ export async function POST(request) {
     // Determine MIME type from the file
     const mimeType = imageFile.type || "image/jpeg";
 
-    // Initialize Gemini AI
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-
     // Analyze ingredients from the image
-    const parts = [
+    const contents = [
       {
         inlineData: {
           mimeType: mimeType,
@@ -80,35 +71,23 @@ Or if not food:
       },
     ];
 
-    // Generate caption using Gemini
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const caption = response.text();
+    const response = await generatePrimaryContent({ contents });
+    const caption = getResponseText(response);
     console.log("response from gemini:", caption);
 
-    // Parse JSON from markdown code blocks or plain text
     let parsedData = null;
     try {
-      // Try to extract JSON from markdown code blocks (```json ... ```)
-      const jsonMatch = caption.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : caption;
-      
-      // Clean up the string and parse JSON
-      const cleanedJson = jsonString.trim();
-      parsedData = JSON.parse(cleanedJson);
+      parsedData = parseJsonFromResponse(caption);
     } catch (parseError) {
       console.error("Error parsing JSON from Gemini response:", parseError);
-      // If parsing fails, return the raw caption
       parsedData = { caption: caption };
     }
 
     return Response.json(parsedData);
   } catch (error) {
     console.error("Error processing image:", error);
-    return Response.json(
-      { error: "Failed to process image. Please try again." },
-      { status: 500 }
-    );
+    const { message, status } = getErrorResponse(error);
+    return Response.json({ error: message }, { status });
   }
 }
 
