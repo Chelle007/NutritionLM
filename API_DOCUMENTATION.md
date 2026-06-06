@@ -535,8 +535,8 @@ Uploads a food image, extracts food name and ingredients using AI, analyzes nutr
 
 **Note:** 
 - The image is uploaded to Supabase Storage in the `food-images` bucket
-- Food name and ingredients are extracted using Gemini 2.5 Flash
-- Nutrition values are estimated using Gemini 2.0 Flash
+- Food name and ingredients are extracted using the primary Gemini model (`GEMINI_MODEL_PRIMARY`)
+- Nutrition values are estimated using the fast Gemini model (`GEMINI_MODEL_FAST`)
 - The food log is automatically saved with the current date and time
 
 ---
@@ -1064,6 +1064,8 @@ The following environment variables are required:
 - `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` - Supabase anon/public key
 - `SUPABASE_SERVICE_ROLE_KEY` - Supabase service role key (for server-side operations)
 - `GEMINI_API_KEY` - Google Gemini API key (for AI features)
+- `GEMINI_MODEL_PRIMARY` - Primary model for chat and image understanding (default: `gemini-3.5-flash`)
+- `GEMINI_MODEL_FAST` - Fast model for JSON/text generation tasks (default: `gemini-3.1-flash-lite`)
 
 **Optional (for Google Fit integration):**
 - `GOOGLE_CLIENT_ID` - Google OAuth client ID

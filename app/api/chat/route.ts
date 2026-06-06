@@ -1,14 +1,21 @@
 // [START] documentation reference: https://ai.google.dev/gemini-api/docs/models | https://ai.google.dev/gemini-api/docs
 import { NextRequest, NextResponse } from "next/server";
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import type { Content, GenerateContentConfig } from "@google/genai";
 import { createClient } from "../../utils/supabase/server";
 import { searchRelevantSources, formatSourcesAsContext, searchSourcesByFilename } from "../../../services/sourceSearch";
+import { GEMINI_MODELS } from "../../constants/gemini";
+import {
+  createChat,
+  generateContent,
+  sendChatMessage,
+  getResponseText,
+  parseJsonFromResponse,
+  extractGroundingCitations,
+  getErrorResponse,
+} from "../../../services/geminiClient";
 
 export async function POST(req: NextRequest) {
   try {
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) throw new Error("Missing API Key");
-
     // Get authenticated user
     const supabase = await createClient();
     const { data: { user }, error: authError } = await supabase.auth.getUser();
@@ -18,13 +25,8 @@ export async function POST(req: NextRequest) {
     }
 
     const { message, image, factCheck, compare, chatSessionId } = await req.json();
-    
-    const genAI = new GoogleGenerativeAI(apiKey);
-    
-    // 1. Base Configuration
-    let modelConfig: any = { 
-        model: "gemini-2.0-flash-exp", // or "gemini-2.5-pro" for better results
-    };
+
+    const config: GenerateContentConfig = {};
 
     // 2. Shared Instructions (Applied across all modes)
     const sourceInstruction = `
@@ -82,8 +84,8 @@ export async function POST(req: NextRequest) {
 
     // 3a. Handle "Compare" Mode
     if (compare) {
-      modelConfig.generationConfig = { responseMimeType: "application/json" };
-      modelConfig.tools = [{ googleSearch: {} }]; 
+      config.responseMimeType = "application/json";
+      config.tools = [{ googleSearch: {} }];
       
       modeInstruction = `
         You are an expert Nutrition Assistant grounded in scientific consensus. Your goal is to provide accurate, actionable, and safe nutritional information based on high-quality sources.
@@ -115,7 +117,7 @@ export async function POST(req: NextRequest) {
     }
     // 3b. Handle "Fact Check" Mode
     else if (factCheck) {
-        modelConfig.tools = [{ googleSearch: {} }];
+        config.tools = [{ googleSearch: {} }];
 
         modeInstruction = `
           You are an expert Nutrition Assistant grounded in scientific consensus. Your goal is to provide accurate, actionable, and safe nutritional information based on high-quality sources.
@@ -158,18 +160,16 @@ export async function POST(req: NextRequest) {
     // 4. Search for relevant user sources (RAG)
     let sourcesContext = '';
     try {
-      // For personal queries, search more aggressively (increase topK)
       const queryLower = (message || '').toLowerCase();
       const isPersonalQuery = queryLower.includes('my ') ||
                               queryLower.includes('restriction') ||
                               queryLower.includes('allergy') ||
                               queryLower.includes('detail') ||
                               queryLower.includes('personal');
-      const topK = isPersonalQuery ? 10 : 5; // Get more chunks for personal queries
+      const topK = isPersonalQuery ? 10 : 5;
       
       let relevantSources = await searchRelevantSources(user.id, message || '', topK);
       
-      // Fallback: If no sources found for personal queries, try filename search
       if ((!relevantSources || relevantSources.length === 0) && isPersonalQuery) {
         console.log('No semantic matches found, trying filename search for personal query');
         relevantSources = await searchSourcesByFilename(user.id, message || '', topK);
@@ -180,7 +180,6 @@ export async function POST(req: NextRequest) {
       }
     } catch (sourceError) {
       console.error("Error searching sources:", sourceError);
-      // Continue without sources if search fails
     }
 
     // 5. Add personal information access instruction if sources are available
@@ -212,11 +211,11 @@ export async function POST(req: NextRequest) {
 
     // 6. Combine mode instruction with source instruction and user sources context
     systemInstruction = `${modeInstruction}\n\n${sourceInstruction}${personalInfoInstruction}${sourcesContext}`;
+    config.systemInstruction = systemInstruction;
 
     // 6. Ensure chat session exists or create one
     let sessionId = chatSessionId;
     if (!sessionId) {
-      // Create a new session if none provided
       const { data: newSession, error: createError } = await supabase
         .from("chat_sessions")
         .insert({
@@ -240,21 +239,19 @@ export async function POST(req: NextRequest) {
       .eq("user_id", user.id)
       .eq("chat_session_id", sessionId)
       .order("created_at", { ascending: true })
-      .limit(50); // Limit to last 50 messages to avoid token limits
+      .limit(50);
 
     if (historyError) {
       console.error("Error fetching chat history:", historyError);
     }
 
     // 8. Build conversation history for Gemini
-    const history: any[] = [];
+    const history: Content[] = [];
     if (chatHistory && chatHistory.length > 0) {
-      // Convert database messages to Gemini format
       for (const msg of chatHistory) {
-        const parts: any[] = [];
+        const parts: { text: string }[] = [];
         if (msg.image_url) {
           // Note: We can't include image URLs in history, only base64
-          // For now, we'll skip images in history
         }
         if (msg.message) {
           parts.push({ text: msg.message });
@@ -271,8 +268,6 @@ export async function POST(req: NextRequest) {
     // 9. Save user message to database
     let imageUrl = null;
     if (image?.data) {
-      // If image is provided, we could upload it to storage, but for now we'll just store the reference
-      // The image data is base64, so we'll store a flag that image was included
       imageUrl = "base64_included";
     }
 
@@ -292,18 +287,15 @@ export async function POST(req: NextRequest) {
       console.error("Error saving user message:", saveUserError);
     }
 
-    // Update session's updated_at timestamp
     await supabase
       .from("chat_sessions")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", sessionId);
 
     // 10. Build current message
-    const model = genAI.getGenerativeModel({ ...modelConfig, systemInstruction });
-    
-    const parts = [];
+    const messageParts: Array<{ text: string } | { inlineData: { mimeType: string; data: string } }> = [];
     if (image?.data) {
-        parts.push({ inlineData: { mimeType: image.mimeType, data: image.data }});
+        messageParts.push({ inlineData: { mimeType: image.mimeType, data: image.data }});
     }
 
     let textMessage = message || (image ? "Analyze this image" : "");
@@ -315,93 +307,60 @@ export async function POST(req: NextRequest) {
         textMessage = `Use Google Search to research and fact-check: ${textMessage}. You MUST use the Google Search tool to find at least 5 authoritative sources, prioritizing government and global health authority websites (nih.gov, cdc.gov, who.int, nhs.uk, etc.) over other sources. Cite all sources using [1], [2], [3], [4], [5] format throughout your response.`;
     }
 
-    parts.push({ text: textMessage });
+    messageParts.push({ text: textMessage });
 
     // 11. Use chat with history if available, otherwise use generateContent
-    let result;
+    let response;
     if (history.length > 0) {
-      const chat = model.startChat({ history: history });
-      result = await chat.sendMessage(parts);
+      const chat = createChat({
+        model: GEMINI_MODELS.primary,
+        history,
+        config,
+      });
+      response = await sendChatMessage(chat, messageParts);
     } else {
-      result = await model.generateContent(parts);
+      response = await generateContent({
+        model: GEMINI_MODELS.primary,
+        contents: messageParts,
+        config,
+      });
     }
     
-    const response = result.response;
-    const responseText = response.text();
+    const responseText = getResponseText(response);
 
     // 12. Extract Grounding Metadata (Citations)
-    // This works for both Compare and Fact Check modes automatically
-    let citations: any[] = [];
-    if (response.candidates?.[0]?.groundingMetadata) {
-      const { groundingChunks } = response.candidates[0].groundingMetadata;
-      citations = (groundingChunks || [])
-        .map((chunk: any) => {
-          if (chunk.web?.uri) {
-            return {
-              title: chunk.web.title || chunk.web.uri,
-              uri: chunk.web.uri,
-              snippet: chunk.web.snippet || ""
-            };
-          }
-          return null;
-        })
-        .filter(Boolean);
-    }
+    let citations = extractGroundingCitations(response) as Array<{
+      title: string;
+      uri: string;
+      snippet: string;
+    }>;
     
-    // Log if citations are missing in fact check mode (for debugging)
     if (factCheck && citations.length === 0) {
       console.warn("Fact Check mode: No citations found in grounding metadata. Model may not have used Google Search tool.");
     }
 
     // 13. Parse comparison data if in compare mode
-    let parsedComparison = null;
+    let parsedComparison: {
+      summary?: string;
+      sources?: Array<{ title: string; uri: string }>;
+    } | null = null;
     if (compare) {
       try {
-        let jsonString = responseText;
-        
-        // Try to extract JSON from markdown code blocks
-        const jsonMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
-        if (jsonMatch) {
-          jsonString = jsonMatch[1];
-        } else {
-          // Fallback: strip leading/trailing backticks and "json" label if present
-          jsonString = responseText.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '');
-        }
-        
-        // Find balanced JSON object using brace counting
-        const startIndex = jsonString.indexOf('{');
-        if (startIndex !== -1) {
-          let braceCount = 0;
-          let endIndex = -1;
-          for (let i = startIndex; i < jsonString.length; i++) {
-            if (jsonString[i] === '{') braceCount++;
-            else if (jsonString[i] === '}') {
-              braceCount--;
-              if (braceCount === 0) {
-                endIndex = i;
-                break;
-              }
-            }
-          }
-          if (endIndex !== -1) {
-            jsonString = jsonString.substring(startIndex, endIndex + 1);
-          }
-        }
-        
-        const cleanedJson = jsonString.trim();
-        parsedComparison = JSON.parse(cleanedJson);
-        // Extract sources from comparison data if available
-        if (parsedComparison.sources && Array.isArray(parsedComparison.sources)) {
-          citations = parsedComparison.sources;
+        parsedComparison = parseJsonFromResponse(responseText) as typeof parsedComparison;
+        if (parsedComparison?.sources && Array.isArray(parsedComparison.sources)) {
+          citations = parsedComparison.sources.map((source) => ({
+            title: source.title,
+            uri: source.uri,
+            snippet: "",
+          }));
         }
       } catch (e) {
         console.error("Error parsing comparison JSON:", e);
-        // If parsing fails, parsedComparison remains null
       }
     }
 
     // 14. Save AI response to database
-    const metadata: any = {};
+    const metadata: Record<string, unknown> = {};
     if (citations.length > 0) {
       metadata.citations = citations;
     }
@@ -429,13 +388,11 @@ export async function POST(req: NextRequest) {
       console.error("Error saving AI message:", saveAIError);
     }
 
-    // Update session's updated_at timestamp again
     await supabase
       .from("chat_sessions")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", sessionId);
 
-    // Auto-generate title from first user message if title is still "New Chat"
     if (userMessageText && userMessageText.trim()) {
       const { data: session } = await supabase
         .from("chat_sessions")
@@ -444,7 +401,6 @@ export async function POST(req: NextRequest) {
         .single();
 
       if (session && (session.title === "New Chat" || !session.title)) {
-        // Generate a short title from the first message (max 50 chars)
         const title = userMessageText.length > 50 
           ? userMessageText.substring(0, 47) + "..."
           : userMessageText;
@@ -464,9 +420,10 @@ export async function POST(req: NextRequest) {
         comparisonData: parsedComparison || undefined
     });
 
-  } catch (error: any) {
+  } catch (error) {
     console.error("API Error:", error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    const { message, status } = getErrorResponse(error);
+    return NextResponse.json({ error: message }, { status });
   }
 }
 // [END]

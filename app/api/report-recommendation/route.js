@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { createClient } from '../../utils/supabase/server';
 import { getLast7DaysFoodLogs, getLast7DaysDateRange } from '../../../services/foodLog';
 import { getUserPreferenceServer } from '../../../services/userPreference';
+import { generateFastText, getErrorResponse } from "../../../services/geminiClient";
 
 // Calculate average nutrition intake from food logs
 function calculateAverageNutrition(foodLogs) {
@@ -109,19 +109,6 @@ export async function GET() {
     // Calculate average nutrition intake for last 7 days
     const last7DaysNutritionIntakeAvg = calculateAverageNutrition(foodLogs || []);
 
-    // Check API key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return Response.json(
-        { error: "GEMINI_API_KEY is not set on the server." },
-        { status: 500 }
-      );
-    }
-
-    // Call Gemini API to generate recommendations
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
     // Build comparison data for the prompt
     const comparison = {};
     const nutritionTypes = ['protein', 'carbohydrates', 'fats', 'vitamins', 'minerals', 'fiber'];
@@ -140,10 +127,7 @@ export async function GET() {
       };
     });
 
-    // Build the prompt
-    const parts = [
-      {
-        text: `
+    const prompt = `
 You are a professional nutritionist. Analyze the user's last 7 days nutrition intake compared to their goals and provide personalized recommendations.
 
 Period: ${dateRange.startDate} to ${dateRange.endDate}
@@ -163,27 +147,18 @@ Based on this comparison, provide:
 3. Focus on areas where they are below or above their goals
 4. Provide practical dietary suggestions
 
-Write your response in a friendly, encouraging tone. Be specific and actionable. Do not include any JSON formatting or code blocks - just provide the recommendation text directly.`
-      }
-    ];
+Write your response in a friendly, encouraging tone. Be specific and actionable. Do not include any JSON formatting or code blocks - just provide the recommendation text directly.`;
 
-    // Generate content
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const recommendation = response.text();
-    
+    const recommendation = await generateFastText(prompt);
     console.log("Gemini recommendation:", recommendation);
 
-    // Return just the recommendation
     return Response.json({ 
       recommendation: recommendation.trim()
     });
   } catch (error) {
     console.error("Error in report recommendation API:", error);
-    return Response.json(
-      { error: "Failed to generate recommendation" },
-      { status: 500 }
-    );
+    const { message, status } = getErrorResponse(error);
+    return Response.json({ error: message }, { status });
   }
 }
 // example response

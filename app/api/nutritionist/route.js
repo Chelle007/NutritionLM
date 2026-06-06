@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import { generateFastJson, getErrorResponse } from "../../../services/geminiClient";
 
 // Request body: { food_name: string, ingredients: string[] }
 export async function POST(request) {
@@ -11,24 +11,8 @@ export async function POST(request) {
     console.log("food_name:", food_name);
     console.log("ingredients:", ingredients);
 
-    // Check API key
-    const apiKey = process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      return Response.json(
-        { error: "GEMINI_API_KEY is not set on the server." },
-        { status: 500 }
-      );
-    }
-
-    // Call Gemini API to generate JSON of nutritions and its amount
-    const genAI = new GoogleGenerativeAI(apiKey);
-    const model = genAI.getGenerativeModel({ model: "gemini-2.0-flash" });
-
     // Reference: https://www.medicinenet.com/what_are_the_7_types_of_nutrition/article.htm
-    // Build the prompt - combine all text into a single parts array
-    const parts = [
-      {
-        text: `The food name is "${food_name}". The ingredients are: ${ingredients.join(", ")}.
+    const prompt = `The food name is "${food_name}". The ingredients are: ${ingredients.join(", ")}.
 
 ONLY RESPOND WITH THE JSON FORMAT AND NO EXPLANATION. 
 Provide 6 types of nutritions as specified below and its estimated amount in grams for a single serving of the food, and also assess the overall healthiness level on a scale of 0-100 (where 100 is the healthiest):
@@ -42,24 +26,12 @@ Example format:
   "minerals": 0.5,
   "fiber": 8,
   "healthy_level": 75
-}`
-      }
-    ];
+}`;
 
-    // Generate content - pass parts array directly (no role or contents wrapper)
-    const result = await model.generateContent(parts);
-    const response = await result.response;
-    const caption = response.text();
-    console.log("result from gemini:", caption);
-
-    // Parse JSON from markdown code blocks or plain text
-    let parsedData = null;
+    let parsedData;
     try {
-      // Try to extract JSON from markdown code blocks
-      const jsonMatch = caption.match(/```(?:json)?\s*([\s\S]*?)```/);
-      const jsonString = jsonMatch ? jsonMatch[1] : caption;
-      const cleanedJson = jsonString.trim();
-      parsedData = JSON.parse(cleanedJson);
+      parsedData = await generateFastJson(prompt);
+      console.log("result from gemini:", parsedData);
     } catch (parseError) {
       console.error("Error parsing JSON from Gemini response:", parseError);
       return Response.json(
@@ -71,10 +43,8 @@ Example format:
     return Response.json({ nutritions: parsedData });
   } catch (error) {
     console.error("Error in nutritionist API:", error);
-    return Response.json(
-      { error: "Failed to process nutrition analysis" },
-      { status: 500 }
-    );
+    const { message, status } = getErrorResponse(error);
+    return Response.json({ error: message }, { status });
   }
 }
 
